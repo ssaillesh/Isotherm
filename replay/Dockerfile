@@ -9,6 +9,8 @@ COPY replay/pyproject.toml replay/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY proto /app/proto
+# loader.py reads cluster capacity from ../configs (its --config-dir default).
+COPY configs /app/configs
 COPY replay /app/replay
 RUN uv run --no-project --with grpcio-tools python -m grpc_tools.protoc \
       -Igen=../proto --python_out=. --grpc_python_out=. ../proto/isotherm.proto

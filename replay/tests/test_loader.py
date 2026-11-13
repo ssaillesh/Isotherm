@@ -1,6 +1,17 @@
+import csv
+from pathlib import Path
+
 import pytest
 
-from loader import Job, load_csv, offered_load, synthetic, write_csv
+from loader import (
+    Job,
+    capacity_gpus,
+    load_csv,
+    offered_load,
+    sweep,
+    synthetic,
+    write_csv,
+)
 from pods import GPU_RESOURCE, pod_manifest, pod_name
 
 
@@ -11,7 +22,46 @@ def test_synthetic_is_deterministic_and_sorted():
     assert synthetic(50, seed=8) != a
 
 
-CAPACITY_GPUS = 320  # test value; matches the current configs/ (10 racks x 4 nodes x 8 GPUs)
+REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
+CAPACITY_GPUS = capacity_gpus(REPO_CONFIGS)
+
+
+def test_capacity_from_repo_configs():
+    # 10 racks x 4 slots x 8 GPUs today; this only checks the config is read, not frozen.
+    assert CAPACITY_GPUS > 0
+    assert CAPACITY_GPUS % 8 == 0
+
+
+def test_capacity_from_config_dir(tmp_path):
+    (tmp_path / "rack.yaml").write_text("layout:\n  n_racks: 3\n  slots_per_rack: 2\n")
+    (tmp_path / "gpu_specs.yaml").write_text("node:\n  gpus_per_node: 4\n")
+    assert capacity_gpus(tmp_path) == 24
+
+
+def test_capacity_missing_config_dir(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        capacity_gpus(tmp_path / "nope")
+
+
+def test_sweep_writes_traces_and_index(tmp_path):
+    index = sweep(tmp_path, loads=[0.4, 0.8], seeds=[0, 1], n_jobs=300, capacity=CAPACITY_GPUS)
+    with index.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert [(float(r["target_load"]), int(r["seed"])) for r in rows] == [
+        (0.4, 0),
+        (0.4, 1),
+        (0.8, 0),
+        (0.8, 1),
+    ]
+    for r in rows:
+        jobs = load_csv(tmp_path / r["trace"])
+        assert len(jobs) == int(r["jobs"]) == 300
+        assert int(r["capacity_gpus"]) == CAPACITY_GPUS
+        assert float(r["offered_load"]) == pytest.approx(offered_load(jobs, CAPACITY_GPUS), 1e-3)
+    # Same seed, different load: same jobs, different spacing.
+    a, b = (load_csv(tmp_path / rows[i]["trace"]) for i in (0, 2))
+    assert [j.gpu_count for j in a] == [j.gpu_count for j in b]
+    assert a[-1].submit_s > b[-1].submit_s
 
 
 @pytest.mark.parametrize("target", [0.3, 0.5, 0.7, 0.9])

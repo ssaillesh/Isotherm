@@ -11,7 +11,8 @@ import argparse
 import csv
 import logging
 from collections import deque
-from dataclasses import asdict, dataclass, fields
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from gen import isotherm_pb2 as pb
@@ -33,6 +34,58 @@ class RunMetrics:
     throttled_gpu_s: float
 
 
+@dataclass(frozen=True)
+class Tick:
+    """One tick, the interval (t_s - tick_s, t_s].
+
+    allocated_gpus is what was bound while the tick ran (after that tick's placements).
+    Everything else is what the sim reported at the end of the tick.
+    """
+
+    t_s: float
+    allocated_gpus: int
+    busy_gpus: int
+    peak_temp_c: float
+    busy_temp_sum_c: float
+    peak_inlet_c: float
+    # Smallest margin in the row: min(inlet_limit_c - inlet_c, throttle_c - temp_c).
+    min_headroom_c: float
+    throttled_gpus: int
+
+
+@dataclass
+class Trajectory:
+    tick_s: float
+    capacity_gpus: int
+    ticks: list[Tick] = field(default_factory=list)
+    placed_at: dict[str, float] = field(default_factory=dict)  # job_id -> bind time
+
+
+# (sim time, jobs not yet placed, busy GPUs, placements so far) -> stop?
+StopRule = Callable[[float, int, int, dict[str, float]], bool]
+
+
+def drained(t: float, waiting: int, busy: int, placed_at: dict[str, float]) -> bool:
+    return waiting == 0 and busy == 0
+
+
+def _tick(t: float, allocated: int, state: pb.ClusterState) -> Tick:
+    gpus = [g for n in state.nodes for g in n.gpus]
+    busy = [g.temp_c for g in gpus if g.workload_id]
+    headroom = [n.inlet_limit_c - n.inlet_c for n in state.nodes]
+    headroom += [n.throttle_c - g.temp_c for n in state.nodes for g in n.gpus]
+    return Tick(
+        t_s=t,
+        allocated_gpus=allocated,
+        busy_gpus=len(busy),
+        peak_temp_c=max((g.temp_c for g in gpus), default=0.0),
+        busy_temp_sum_c=sum(busy),
+        peak_inlet_c=max((n.inlet_c for n in state.nodes), default=0.0),
+        min_headroom_c=min(headroom, default=0.0),
+        throttled_gpus=sum(g.throttled for g in gpus),
+    )
+
+
 def _bind(sim, job: TraceJob, node: str) -> bool:
     resp = sim.ApplyEvent(
         pb.PodEvent(kind=pb.PodEvent.KIND_BIND, workload=to_workload(job), node=node)
@@ -42,16 +95,22 @@ def _bind(sim, job: TraceJob, node: str) -> bool:
     return resp.ok
 
 
-def run_policy(
-    sim, jobs: list[TraceJob], policy, tick_s: float = 10.0, max_sim_s: float = 30 * 86400
-) -> RunMetrics:
-    """Event loop: arrivals join a FIFO queue (with backfill); the sim expires finished jobs."""
-    sim.Reset(pb.ResetRequest())
+def simulate(
+    sim,
+    jobs: list[TraceJob],
+    policy,
+    tick_s: float = 10.0,
+    max_sim_s: float = 30 * 86400,
+    stop: StopRule = drained,
+) -> Trajectory:
+    """Event loop: arrivals join a FIFO queue (with backfill); the sim expires finished jobs.
+
+    Records what the sim reports after every tick, and when each job was bound.
+    """
+    state = sim.Reset(pb.ResetRequest())
+    traj = Trajectory(tick_s, capacity_gpus=sum(len(n.gpus) for n in state.nodes))
     arrivals = deque(sorted(jobs, key=lambda j: j.submit_s))
     queue: list[TraceJob] = []
-    waits: list[float] = []
-    peak = busy_sum = throttled_gpu_s = 0.0
-    busy_n = 0
     t = 0.0
 
     while t <= max_sim_s:
@@ -59,6 +118,7 @@ def run_policy(
             queue.append(arrivals.popleft())
 
         state = sim.GetState(pb.GetStateRequest())
+        free_before = sum(n.free_gpus for n in state.nodes)
         if hasattr(policy, "assign"):  # batch policy
             placement = policy.assign(state, queue, sim)
             placed = [
@@ -72,29 +132,37 @@ def run_policy(
                     placed.append(job)
                     state = sim.GetState(pb.GetStateRequest())
         for job in placed:
-            waits.append(t - job.submit_s)
+            traj.placed_at[job.job_id] = t
             queue.remove(job)
+        # Sampling busy GPUs after Step would miss each job's last tick (it has expired).
+        allocated = traj.capacity_gpus - free_before + sum(j.gpu_count for j in placed)
 
         state = sim.Step(pb.StepRequest(dt_s=tick_s))
         t += tick_s
-        gpus = [g for n in state.nodes for g in n.gpus]
-        busy = [g.temp_c for g in gpus if g.workload_id]
-        peak = max(peak, max((g.temp_c for g in gpus), default=0.0))
-        busy_sum += sum(busy)
-        busy_n += len(busy)
-        throttled_gpu_s += sum(g.throttled for g in gpus) * tick_s
-        if not arrivals and not queue and not busy:
+        tick = _tick(t, allocated, state)
+        traj.ticks.append(tick)
+        if stop(t, len(arrivals) + len(queue), tick.busy_gpus, traj.placed_at):
             break
+    return traj
 
+
+def run_policy(
+    sim, jobs: list[TraceJob], policy, tick_s: float = 10.0, max_sim_s: float = 30 * 86400
+) -> RunMetrics:
+    """Whole-run metrics, from t = 0 until every job has arrived, run and finished."""
+    traj = simulate(sim, jobs, policy, tick_s, max_sim_s)
+    submit = {j.job_id: j.submit_s for j in jobs}
+    waits = [t - submit[jid] for jid, t in traj.placed_at.items()]
+    busy_n = sum(k.busy_gpus for k in traj.ticks)
     return RunMetrics(
         policy=policy.name,
         jobs=len(jobs),
         placed=len(waits),
         mean_wait_s=sum(waits) / len(waits) if waits else 0.0,
-        makespan_s=t,
-        peak_temp_c=peak,
-        mean_busy_temp_c=busy_sum / busy_n if busy_n else 0.0,
-        throttled_gpu_s=throttled_gpu_s,
+        makespan_s=traj.ticks[-1].t_s if traj.ticks else 0.0,
+        peak_temp_c=max((k.peak_temp_c for k in traj.ticks), default=0.0),
+        mean_busy_temp_c=sum(k.busy_temp_sum_c for k in traj.ticks) / busy_n if busy_n else 0.0,
+        throttled_gpu_s=sum(k.throttled_gpus for k in traj.ticks) * tick_s,
     )
 
 
@@ -106,11 +174,14 @@ def write_metrics(rows: list[RunMetrics], path: Path) -> None:
         w.writerows(asdict(r) for r in rows)
 
 
-def make_policy(name: str):
+def make_policy(name: str, seed: int = 0):
+    """Build a policy by name; `seed` only matters for the random policy."""
     if name == "ortools":
         from ortools_opt import OrToolsBatchPolicy
 
         return OrToolsBatchPolicy()
+    if name == "random":
+        return GREEDY_POLICIES[name](seed=seed)
     return GREEDY_POLICIES[name]()
 
 

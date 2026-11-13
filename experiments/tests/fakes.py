@@ -11,6 +11,7 @@ from gen import isotherm_pb2 as pb
 # node -> (inlet_c reported, headroom_c reported)
 NODES = {"n-cool": (25.0, 20.0), "n-mid": (30.0, 10.0), "n-hot": (35.0, 2.0)}
 GPUS_PER_NODE = 8
+INLET_LIMIT_C, THROTTLE_C = 40.0, 90.0
 
 
 class FakeSim:
@@ -38,7 +39,12 @@ class FakeSim:
             ]
             nodes.append(
                 pb.NodeState(
-                    name=name, inlet_c=inlet, free_gpus=GPUS_PER_NODE - self._used(name), gpus=gpus
+                    name=name,
+                    inlet_c=inlet,
+                    free_gpus=GPUS_PER_NODE - self._used(name),
+                    gpus=gpus,
+                    inlet_limit_c=INLET_LIMIT_C,
+                    throttle_c=THROTTLE_C,
                 )
             )
         return pb.ClusterState(sim_time_s=self.t, nodes=nodes)

@@ -35,6 +35,9 @@ make test             # each component's lint + tests, one after another
 make sim              # terminal 1: simulator on :50051, Prometheus metrics on :9100
 make trace            # synthetic trace -> data/synthetic.csv
 make baselines        # every policy vs the sim -> docs/results/baselines.csv + plots
+
+make sweep-traces     # 2,000-job traces at LOADS="0.3 0.5 0.7 0.9" x 5 seeds -> data/sweep/
+make sweep            # every policy, steady-state metrics -> docs/results/sweep*.csv + plot
 ```
 
 Train the learned surrogate (the rollout oracle provides the labels):

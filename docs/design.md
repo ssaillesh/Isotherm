@@ -77,8 +77,36 @@ still running need about 9,000 s more to finish, and that tail pulls the whole-r
 down to about 32%. Above roughly 100%, or when large jobs fragment nodes, jobs queue, and
 achieved utilisation falls below ρ.
 
-`capacity_gpus` is a CLI argument, not read from `configs/`, so `replay` stays standalone
-and adds no YAML dependency. Today it is 10 racks × 4 nodes × 8 GPUs = 320.
+Capacity is read from `configs/` (`loader.py --config-dir`, default `../configs`) as
+`n_racks × slots_per_rack × gpus_per_node`, today 10 × 4 × 8 = 320, so the trace is always
+sized for the row the sim models. `replay` depends on PyYAML for this.
+
+## Load sweep (experiments/sweep.py)
+
+`make sweep-traces` writes one trace per (target load, seed) plus `index.csv`;
+`make sweep` runs every policy on each one against the sim. Rules, enforced by both CLIs:
+
+- **At least 2,000 jobs per trace and 5 seeds per load.** With 2,000 jobs the measured
+  offered load of a seed still lands within about ±6% of the target (0.85 to 0.92 at a
+  target of 0.9), which is why it is recorded per seed rather than assumed.
+- **Steady state only.** Every metric is taken over the window from 10% to 90% of the
+  trace's arrival period (first to last submit). That drops the empty-cluster warm-up and the
+  drain after arrivals stop. Ticks count when they end inside the window; waits count for
+  jobs submitted inside it. The run stops once the window has ended and all of its jobs
+  are placed, so the drain is never simulated.
+- **Load is recorded three ways, per seed:** `target_load` (what the generator aimed for),
+  `offered_load` (window arrivals' GPU-seconds over window length × capacity), and
+  `achieved_utilisation` (mean GPUs allocated per tick over capacity). Capacity comes from
+  the sim's `GetState`. The sweep refuses to run if that disagrees with the index.
+
+Utilisation counts the GPUs bound during each tick, not the busy GPUs the sim reports after
+`Step`: by then, a job ending on the tick boundary has already expired, and every job would
+lose one tick. Below saturation `achieved_utilisation` ≈ `offered_load`. It falls below
+once jobs queue or large jobs fragment nodes.
+
+Output: `docs/results/sweep.csv`, one row per (policy, load, seed), appended as each run
+finishes (`RESUME=1 make sweep` continues a partial file). Also `sweep_summary.csv` (mean and
+sample std over seeds) and `sweep.png`.
 
 ## Open questions
 

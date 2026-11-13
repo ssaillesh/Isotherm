@@ -4,10 +4,13 @@ Normalized trace CSV (the format experiments/ and replayer.py consume):
 
     job_id,submit_s,duration_s,gpu_count,gpu_util
 
+Cluster capacity (total GPUs) is read from configs/ (--config-dir, default ../configs).
+
 Usage:
     uv run python loader.py synthetic --jobs 500 --out ../data/synthetic.csv
-    uv run python loader.py synthetic --jobs 500 --load 0.7 --capacity-gpus 320 \
-        --out ../data/synthetic_70.csv
+    uv run python loader.py synthetic --jobs 500 --load 0.7 --out ../data/synthetic_70.csv
+    uv run python loader.py sweep --loads 0.3 0.5 0.7 0.9 --seeds 5 --jobs 2000 \
+        --out ../data/sweep
     uv run python loader.py csv path/to/raw.csv --out ../data/trace.csv --limit 1000
 """
 
@@ -20,7 +23,15 @@ import random
 from dataclasses import astuple, dataclass, fields
 from pathlib import Path
 
+import yaml
+
 COLUMNS = ("job_id", "submit_s", "duration_s", "gpu_count", "gpu_util")
+INDEX_COLUMNS = ("trace", "target_load", "seed", "jobs", "capacity_gpus", "offered_load")
+DEFAULT_CONFIG_DIR = Path("../configs")
+
+# Sweep rules: enough jobs per trace for a steady state, enough seeds for a spread.
+MIN_SWEEP_JOBS = 2000
+MIN_SWEEP_SEEDS = 5
 
 
 @dataclass(frozen=True)
@@ -61,6 +72,16 @@ def load_csv(path: Path, limit: int | None = None) -> list[Job]:
     jobs = jobs[:limit] if limit else jobs
     t0 = jobs[0].submit_s if jobs else 0.0
     return [Job(j.job_id, j.submit_s - t0, j.duration_s, j.gpu_count, j.gpu_util) for j in jobs]
+
+
+def capacity_gpus(config_dir: Path = DEFAULT_CONFIG_DIR) -> int:
+    """Total GPUs in the row: n_racks * slots_per_rack * gpus_per_node from configs/."""
+    layout = yaml.safe_load((config_dir / "rack.yaml").read_text())["layout"]
+    node = yaml.safe_load((config_dir / "gpu_specs.yaml").read_text())["node"]
+    total = int(layout["n_racks"]) * int(layout["slots_per_rack"]) * int(node["gpus_per_node"])
+    if total <= 0:
+        raise ValueError(f"{config_dir}: cluster has no GPUs")
+    return total
 
 
 def mean_job_gpu_seconds(
@@ -142,6 +163,36 @@ def write_csv(jobs: list[Job], path: Path) -> None:
         w.writerows(astuple(j) for j in jobs)
 
 
+def sweep(
+    out_dir: Path,
+    loads: list[float],
+    seeds: list[int],
+    n_jobs: int,
+    capacity: int,
+) -> Path:
+    """Write one synthetic trace per (target load, seed) and an index.csv describing them.
+
+    The index is what experiments/sweep.py reads: trace path (relative to the index),
+    target load, seed, job count, capacity and the trace's measured offered load.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for load in loads:
+        for seed in seeds:
+            jobs = synthetic(n_jobs, target_load=load, capacity_gpus=capacity, seed=seed)
+            name = f"load{load:.2f}-seed{seed}.csv"
+            write_csv(jobs, out_dir / name)
+            rows.append(
+                (name, load, seed, n_jobs, capacity, round(offered_load(jobs, capacity), 4))
+            )
+    index = out_dir / "index.csv"
+    with index.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(INDEX_COLUMNS)
+        w.writerows(rows)
+    return index
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -149,31 +200,49 @@ def main() -> None:
     s.add_argument("--jobs", type=int, default=500)
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--load", type=float, help="target offered load, a fraction such as 0.7")
-    s.add_argument(
-        "--capacity-gpus",
-        type=int,
-        help="total GPUs in the cluster (n_racks * slots_per_rack * gpus_per_node in configs/)",
-    )
+    w = sub.add_parser("sweep", help="traces for every (load, seed) plus index.csv")
+    w.add_argument("--loads", type=float, nargs="+", required=True)
+    w.add_argument("--seeds", type=int, default=MIN_SWEEP_SEEDS, help="seeds 0..N-1")
+    w.add_argument("--jobs", type=int, default=MIN_SWEEP_JOBS)
+    for sp in (s, w):
+        sp.add_argument(
+            "--config-dir",
+            type=Path,
+            default=DEFAULT_CONFIG_DIR,
+            help="directory with rack.yaml and gpu_specs.yaml (cluster capacity)",
+        )
     c = sub.add_parser("csv", help="validate and normalize an existing trace CSV")
     c.add_argument("path", type=Path)
     c.add_argument("--limit", type=int)
-    for sp in (s, c):
-        sp.add_argument("--out", type=Path, required=True)
+    for sp in (s, c, w):
+        sp.add_argument("--out", type=Path, required=True, help="output CSV (sweep: directory)")
     args = p.parse_args()
 
-    if args.cmd == "synthetic":
-        if args.load is not None and args.capacity_gpus is None:
-            p.error("--load needs --capacity-gpus")
-        jobs = synthetic(
-            args.jobs, target_load=args.load, capacity_gpus=args.capacity_gpus, seed=args.seed
+    if args.cmd == "sweep":
+        if args.jobs < MIN_SWEEP_JOBS:
+            p.error(f"--jobs must be at least {MIN_SWEEP_JOBS} for a sweep")
+        if args.seeds < MIN_SWEEP_SEEDS:
+            p.error(f"--seeds must be at least {MIN_SWEEP_SEEDS} for a sweep")
+        if any(load <= 0 for load in args.loads):
+            p.error("--loads must be positive")
+        capacity = capacity_gpus(args.config_dir)
+        index = sweep(args.out, args.loads, list(range(args.seeds)), args.jobs, capacity)
+        print(
+            f"wrote {len(args.loads) * args.seeds} traces of {args.jobs} jobs "
+            f"({capacity} GPUs) and {index}"
         )
+        return
+
+    capacity = None
+    if args.cmd == "synthetic":
+        capacity = capacity_gpus(args.config_dir)
+        jobs = synthetic(args.jobs, target_load=args.load, capacity_gpus=capacity, seed=args.seed)
     else:
         jobs = load_csv(args.path, args.limit)
     write_csv(jobs, args.out)
     print(f"wrote {len(jobs)} jobs to {args.out}")
-    if args.cmd == "synthetic" and args.capacity_gpus:
-        load = offered_load(jobs, args.capacity_gpus)
-        print(f"offered load {load:.3f} of {args.capacity_gpus} GPUs")
+    if capacity:
+        print(f"offered load {offered_load(jobs, capacity):.3f} of {capacity} GPUs")
 
 
 if __name__ == "__main__":

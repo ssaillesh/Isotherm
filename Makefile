@@ -15,6 +15,12 @@ CLUSTER       ?= isotherm
 TRACE         ?= data/synthetic.csv
 RESULTS       ?= docs/results
 
+# Load sweep (`make sweep-traces sweep`): the rules need >= 2000 jobs and >= 5 seeds.
+LOADS         ?= 0.3 0.5 0.7 0.9
+SEEDS         ?= 5
+SWEEP_JOBS    ?= 2000
+SWEEP_DIR     ?= data/sweep
+
 PROTOC_GEN_GO_VERSION      := v1.35.2
 PROTOC_GEN_GO_GRPC_VERSION := v1.5.1
 K8S_VERSION                := 1.31.4
@@ -77,7 +83,7 @@ test-deploy: ## Test the kwok node generator
 
 # ---------------------------------------------------------------- run locally
 
-.PHONY: sim trace baselines plots dataset train
+.PHONY: sim trace baselines sweep-traces sweep dataset train
 sim: proto-sim ## Run the thermal simulator (gRPC :50051, metrics :9100)
 	cd sim && uv run python server.py
 
@@ -88,6 +94,16 @@ baselines: proto-experiments ## Run every policy against a running sim (needs `m
 	cd experiments && uv run python simulate.py --sim $(SIM_ADDR) --trace ../$(TRACE) \
 	  --out ../$(RESULTS)/baselines.csv
 	cd experiments && uv run python plots.py ../$(RESULTS)/baselines.csv --out ../$(RESULTS)
+
+sweep-traces: ## Generate one trace per (load, seed) plus an index into $(SWEEP_DIR)
+	cd replay && uv run python loader.py sweep --loads $(LOADS) --seeds $(SEEDS) \
+	  --jobs $(SWEEP_JOBS) --out ../$(SWEEP_DIR)
+
+sweep: proto-experiments ## Steady-state load sweep, every policy (needs `make sim`; RESUME=1)
+	cd experiments && uv run python sweep.py --sim $(SIM_ADDR) \
+	  --index ../$(SWEEP_DIR)/index.csv --out ../$(RESULTS)/sweep.csv $(if $(RESUME),--resume)
+	cd experiments && uv run python plots.py ../$(RESULTS)/sweep_summary.csv --sweep \
+	  --out ../$(RESULTS)
 
 dataset: proto-ml ## Build a surrogate dataset from the sim's rollout oracle (needs `make sim`)
 	cd ml && uv run python dataset.py --sim $(SIM_ADDR) --out ../data/surrogate.npz
