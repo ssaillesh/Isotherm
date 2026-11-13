@@ -71,7 +71,12 @@ The full sweep was not rerun for this check. What was checked:
 
 - **Traces.** `loader.py sweep` was run again with the arguments above into a scratch
   directory. All 20 traces and `index.csv` are byte-identical to the ones the sweep used.
-- **Runs.** RERUN_SUMMARY
+- **Runs.** 12 of the 120 runs were rerun against a fresh `make sim METRICS_PORT=0`, through
+  the same `run_steady_state` function `sweep.py` calls: all six policies on the load 0.9,
+  seed 0 trace and all six on the load 0.3, seed 0 trace. Every column of all 12 rows is
+  exactly equal to the row in `sweep.csv`, including the ortools rows (the solver gave the
+  same placements both times).
+- **Not checked.** The other 108 runs, and the plot, were not regenerated.
 
 ## Headline numbers
 
