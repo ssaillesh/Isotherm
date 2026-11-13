@@ -106,6 +106,10 @@ def simulate(
     """Event loop: arrivals join a FIFO queue (with backfill); the sim expires finished jobs.
 
     Records what the sim reports after every tick, and when each job was bound.
+
+    This loop is the sim's only client, so the state that Reset or Step returned is still
+    current at the top of the next tick, and asking again with GetState would return the
+    same thing. GetState is only needed after a bind.
     """
     state = sim.Reset(pb.ResetRequest())
     traj = Trajectory(tick_s, capacity_gpus=sum(len(n.gpus) for n in state.nodes))
@@ -117,7 +121,6 @@ def simulate(
         while arrivals and arrivals[0].submit_s <= t:
             queue.append(arrivals.popleft())
 
-        state = sim.GetState(pb.GetStateRequest())
         free_before = sum(n.free_gpus for n in state.nodes)
         if hasattr(policy, "assign"):  # batch policy
             placement = policy.assign(state, queue, sim)

@@ -61,3 +61,21 @@ def test_unknown_predictor_is_invalid_argument(stub):
     with pytest.raises(grpc.RpcError) as e:
         stub.ScoreCandidates(pb.ScoreRequest(predictor="learned"))
     assert e.value.code() == grpc.StatusCode.INVALID_ARGUMENT
+
+
+def test_metrics_refresh_is_skipped_when_not_published(cluster):
+    from prometheus_client import REGISTRY
+
+    def sim_time():
+        return REGISTRY.get_sample_value("isotherm_sim_time_s")
+
+    predictors = {"rollout": make_predictor("rollout")}
+    quiet = ThermalSimServicer(cluster, predictors, "rollout", publish_metrics=False)
+    quiet.Reset(pb.ResetRequest(), None)
+    before = sim_time()
+    assert quiet.Step(pb.StepRequest(dt_s=30), None).sim_time_s == 30
+    assert sim_time() == before
+
+    loud = ThermalSimServicer(cluster, predictors, "rollout")
+    assert loud.Step(pb.StepRequest(dt_s=30), None).sim_time_s == 60
+    assert sim_time() == 60

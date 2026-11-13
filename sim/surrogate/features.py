@@ -39,16 +39,18 @@ def features(cluster: Cluster, workload: Workload, node: int) -> list[float]:
     first = g.start
     slots = max(spec.slots_per_rack - 1, 1)
     rack = cluster.node_rack[node]
+    # Features describe the live row, which is scenario 0 of each state array.
+    inlet_c, temp_c = cluster.inlet_c[0], cluster.temp_c[0]
     values = (
-        cluster.inlet_c[node],
+        inlet_c[node],
         cluster.node_slot[node] / slots,
         float(rack in (0, spec.n_racks - 1)),
-        cluster.node_power_w[node],
-        cluster.inlet_c.max(),
-        cluster.inlet_headroom_c(),
-        cluster.temp_c[g].max(),
-        cluster.temp_c[g].mean(),
-        cluster.gpu_headroom_c(),
+        cluster.node_power_w[0, node],
+        inlet_c.max(),
+        cluster.inlet_headroom_c()[0],
+        temp_c[g].max(),
+        temp_c[g].mean(),
+        cluster.gpu_headroom_c()[0],
         cluster.heat[node, node] * 1000,
         cluster.heat[:, node].max() * 1000,
         len(cluster.free_gpus(node)),

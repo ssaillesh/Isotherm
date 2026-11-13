@@ -96,6 +96,19 @@ def test_run_policy_unchanged_by_refactor():
     assert m.makespan_s == traj.ticks[-1].t_s
 
 
+def test_simulate_asks_for_state_only_after_a_bind():
+    # Step already returns the state the next tick needs; one GetState per placement.
+    sim = FakeSim()
+    jobs = jobs_every(50.0, 6)
+    traj = simulate(sim, jobs, SpreadPolicy())
+    assert len(traj.ticks) > len(jobs)
+    assert sim.get_state_calls == len(traj.placed_at) == len(jobs)
+
+    sim = FakeSim()
+    simulate(sim, [], SpreadPolicy())
+    assert sim.get_state_calls == 0
+
+
 def _index(loads, seeds, jobs=2000):
     return [IndexRow(Path(f"l{lo}s{s}.csv"), lo, s, jobs, CAPACITY) for lo in loads for s in seeds]
 

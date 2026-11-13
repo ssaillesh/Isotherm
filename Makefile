@@ -11,6 +11,7 @@ COMPONENTS    := $(PY_COMPONENTS) scheduler deploy
 PROTO         := proto/isotherm.proto
 
 SIM_ADDR      ?= localhost:50051
+METRICS_PORT  ?= 9100
 CLUSTER       ?= isotherm
 TRACE         ?= data/synthetic.csv
 RESULTS       ?= docs/results
@@ -84,8 +85,8 @@ test-deploy: ## Test the kwok node generator
 # ---------------------------------------------------------------- run locally
 
 .PHONY: sim trace baselines sweep-traces sweep dataset train
-sim: proto-sim ## Run the thermal simulator (gRPC :50051, metrics :9100)
-	cd sim && uv run python server.py
+sim: proto-sim ## Run the thermal simulator (gRPC :50051, metrics :9100; METRICS_PORT=0 for sweeps)
+	cd sim && uv run python server.py --metrics-port $(METRICS_PORT)
 
 trace: ## Generate a synthetic trace into $(TRACE)
 	cd replay && uv run python loader.py synthetic --jobs 500 --out ../$(TRACE)
@@ -99,7 +100,7 @@ sweep-traces: ## Generate one trace per (load, seed) plus an index into $(SWEEP_
 	cd replay && uv run python loader.py sweep --loads $(LOADS) --seeds $(SEEDS) \
 	  --jobs $(SWEEP_JOBS) --out ../$(SWEEP_DIR)
 
-sweep: proto-experiments ## Steady-state load sweep, every policy (needs `make sim`; RESUME=1)
+sweep: proto-experiments ## Steady-state load sweep (needs `make sim METRICS_PORT=0`; RESUME=1)
 	cd experiments && uv run python sweep.py --sim $(SIM_ADDR) \
 	  --index ../$(SWEEP_DIR)/index.csv --out ../$(RESULTS)/sweep.csv $(if $(RESUME),--resume)
 	cd experiments && uv run python plots.py ../$(RESULTS)/sweep_summary.csv --sweep \

@@ -36,6 +36,7 @@ make sim              # terminal 1: simulator on :50051, Prometheus metrics on :
 make trace            # synthetic trace -> data/synthetic.csv
 make baselines        # every policy vs the sim -> docs/results/baselines.csv + plots
 
+make sim METRICS_PORT=0   # for sweeps: no Prometheus refresh on every step (faster)
 make sweep-traces     # 2,000-job traces at LOADS="0.3 0.5 0.7 0.9" x 5 seeds -> data/sweep/
 make sweep            # every policy, steady-state metrics -> docs/results/sweep*.csv + plot
 ```

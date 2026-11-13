@@ -37,6 +37,13 @@ def _workload(msg: pb.Workload) -> Workload:
 
 
 def cluster_state(cluster: Cluster) -> pb.ClusterState:
+    # The server holds the live row: scenario 0 of each state array.
+    temp_c, power_w, util, throttled = (
+        a[0] for a in (cluster.temp_c, cluster.power_w, cluster.util, cluster.throttled)
+    )
+    inlet_c, node_power_w, exhaust_c = (
+        a[0] for a in (cluster.inlet_c, cluster.node_power_w, cluster.exhaust_c)
+    )
     nodes = []
     for i, name in enumerate(cluster.node_names):
         spec = cluster.spec.nodes[i]
@@ -44,10 +51,10 @@ def cluster_state(cluster: Cluster) -> pb.ClusterState:
         gpus = [
             pb.GpuState(
                 index=k,
-                temp_c=float(cluster.temp_c[j]),
-                power_w=float(cluster.power_w[j]),
-                util=float(cluster.util[j]),
-                throttled=bool(cluster.throttled[j]),
+                temp_c=float(temp_c[j]),
+                power_w=float(power_w[j]),
+                util=float(util[j]),
+                throttled=bool(throttled[j]),
                 workload_id=str(cluster.owner[j]),
             )
             for k, j in enumerate(range(g.start, g.stop))
@@ -58,12 +65,12 @@ def cluster_state(cluster: Cluster) -> pb.ClusterState:
                 rack=str(spec.rack),
                 slot=spec.slot,
                 gpu_model=spec.gpu.model,
-                inlet_c=float(cluster.inlet_c[i]),
+                inlet_c=float(inlet_c[i]),
                 free_gpus=len(cluster.free_gpus(i)),
                 gpus=gpus,
                 throttle_c=spec.gpu.throttle_c,
-                power_w=float(cluster.node_power_w[i]),
-                exhaust_c=float(cluster.exhaust_c[i]),
+                power_w=float(node_power_w[i]),
+                exhaust_c=float(exhaust_c[i]),
                 inlet_limit_c=cluster.inlet_limit_c,
             )
         )
@@ -74,19 +81,28 @@ def export_metrics(cluster: Cluster) -> None:
     SIM_TIME.set(cluster.time_s)
     for i, name in enumerate(cluster.node_names):
         rack = str(cluster.spec.nodes[i].rack)
-        NODE_INLET.labels(name, rack).set(cluster.inlet_c[i])
-        NODE_POWER.labels(name, rack).set(cluster.node_power_w[i])
+        NODE_INLET.labels(name, rack).set(cluster.inlet_c[0, i])
+        NODE_POWER.labels(name, rack).set(cluster.node_power_w[0, i])
         g = cluster.node_gpus(i)
         for k, j in enumerate(range(g.start, g.stop)):
-            GPU_TEMP.labels(name, rack, str(k)).set(cluster.temp_c[j])
-            GPU_POWER.labels(name, rack, str(k)).set(cluster.power_w[j])
-            GPU_THROTTLED.labels(name, rack, str(k)).set(float(cluster.throttled[j]))
+            GPU_TEMP.labels(name, rack, str(k)).set(cluster.temp_c[0, j])
+            GPU_POWER.labels(name, rack, str(k)).set(cluster.power_w[0, j])
+            GPU_THROTTLED.labels(name, rack, str(k)).set(float(cluster.throttled[0, j]))
 
 
 class ThermalSimServicer(pb_grpc.ThermalSimServicer):
-    def __init__(self, cluster: Cluster, predictors: dict[str, Predictor], default_predictor: str):
+    def __init__(
+        self,
+        cluster: Cluster,
+        predictors: dict[str, Predictor],
+        default_predictor: str,
+        publish_metrics: bool = True,
+    ):
+        """publish_metrics=False skips the Prometheus gauges, which nothing scrapes when
+        the metrics port is off. Refreshing them costs about ten times a physics step."""
         if default_predictor not in predictors:
             raise ValueError(f"default predictor {default_predictor!r} is not loaded")
+        self.publish_metrics = publish_metrics
         self.cluster = cluster
         self.predictors = predictors
         self.default_predictor = default_predictor
@@ -143,13 +159,15 @@ class ThermalSimServicer(pb_grpc.ThermalSimServicer):
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "dt_s must be non-negative")
         with self.lock:
             self.cluster.step(request.dt_s)
-            export_metrics(self.cluster)
+            if self.publish_metrics:
+                export_metrics(self.cluster)
             return cluster_state(self.cluster)
 
     def Reset(self, request, context):
         with self.lock:
             self.cluster.reset()
-            export_metrics(self.cluster)
+            if self.publish_metrics:
+                export_metrics(self.cluster)
             return cluster_state(self.cluster)
 
 
@@ -175,7 +193,9 @@ def main() -> None:
     predictors = {"rollout": make_predictor("rollout")}
     if args.model_path:
         predictors["learned"] = make_predictor("learned", args.model_path)
-    servicer = ThermalSimServicer(cluster, predictors, args.predictor)
+    servicer = ThermalSimServicer(
+        cluster, predictors, args.predictor, publish_metrics=bool(args.metrics_port)
+    )
 
     if args.metrics_port:
         start_http_server(args.metrics_port)

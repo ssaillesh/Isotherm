@@ -44,6 +44,29 @@ Per substep (≤ 5 s):
 4. Exhaust T_out = T_in + P / (airflow·c_p).
 5. GPU junction: C·dT/dt = P − (T − T_in)/R, stepped exactly with an exponential, so it is stable for any step size.
 
+**Scenarios.** Every state array in `Cluster` has a leading scenario axis: (scenarios, GPUs)
+or (scenarios, nodes). The live row is one scenario. `Cluster.branch(trial, nodes)` returns
+one scenario per candidate node, each with the trial workload added there, and `step`
+advances them all with the same code. Scenarios share the clock and the workload schedule;
+only the trial workload differs.
+
+**What `step` avoids repeating**, without changing any arithmetic:
+
+- *Power and inlets.* They depend only on utilization and on each other. If an update
+  returns exactly the inlets it was given, the next one would repeat itself, so it is skipped
+  until a bind, unbind or expiry changes utilization. A row that is not throttling settles
+  on the second update after a change. A throttling row keeps updating until it stops moving.
+- *Expiry.* End times sit in a heap, so each substep looks only at the earliest one, not at
+  every workload. An entry whose workload was unbound early is dropped when it surfaces.
+- *The decay factor* exp(−h/RC) depends only on the GPU and the substep length, so it is
+  computed once per length.
+
+Two places choose the slower of two equivalent formulas, because the faster one rounds
+differently in the last bit and results must reproduce exactly: per-server power is a running
+total in GPU order (not `sum`), and inlets use one matrix-vector product per scenario (not
+one matrix-matrix product). `sim/tests/test_physics.py` checks `step` against the substep
+written out longhand, and a branch against separate copies, for exact equality.
+
 ## Scoring
 
 `ScoreCandidates` returns, per candidate:
@@ -59,7 +82,7 @@ Margins are row-wide because recirculation couples every server.
 
 Predictors:
 
-- **rollout** (default, exact): copies the row, binds the pod, and simulates over `horizon_s` (default 600 s).
+- **rollout** (default, exact): branches the row into one scenario per candidate node, adds the pod to each, and simulates them together over `horizon_s` (default 600 s). The pod stays for the whole horizon; workloads already running expire on schedule.
 - **learned**: a gradient-boosted regressor trained by `ml/` on rollout labels. It predicts both headrooms from the feature vector.
 
 ## Workload load (replay/loader.py)

@@ -18,6 +18,7 @@ class FakeSim:
     def __init__(self):
         self.Reset(None)
         self.score_calls = 0
+        self.get_state_calls = 0
 
     def Reset(self, req):
         self.t = 0.0
@@ -50,6 +51,7 @@ class FakeSim:
         return pb.ClusterState(sim_time_s=self.t, nodes=nodes)
 
     def GetState(self, req):
+        self.get_state_calls += 1
         return self._state()
 
     def ScoreCandidates(self, req):

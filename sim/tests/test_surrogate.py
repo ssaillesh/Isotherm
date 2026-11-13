@@ -50,3 +50,18 @@ def test_rollout_marks_full_and_unknown_nodes_infeasible(cluster):
 def test_rollout_returns_features(cluster):
     (s,) = RolloutPredictor().score(cluster, Workload("w", 2, 0.5), cluster.node_names[:1], 60)
     assert len(s.features) == len(FEATURE_NAMES)
+
+
+def test_scoring_candidates_together_equals_scoring_each_alone(cluster):
+    # One rollout steps every candidate at once; the scores must be the same floats as
+    # rolling each candidate out by itself.
+    cluster.bind(Workload("bg", 8, 0.9, duration_s=150), cluster.node_names[3])
+    cluster.bind(Workload("bg2", 6, 0.7), cluster.node_names[20])
+    cluster.step(60)
+    job = Workload("job", 3, 0.85, duration_s=900)
+    names = [*cluster.node_names[::7], "nope", cluster.node_names[20]]  # 20 has 2 free GPUs
+    together = RolloutPredictor().score(cluster, job, names, 600)
+    alone = [RolloutPredictor().score(cluster, job, [n], 600)[0] for n in names]
+    assert together == alone
+    assert [s.node for s in together] == names
+    assert [s.feasible for s in together][-2:] == [False, False]
