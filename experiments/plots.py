@@ -57,7 +57,10 @@ INK, MUTED = "#1f1f1e", "#6b6a65"
 
 
 def plot_sweep(summary_csv: Path, out_dir: Path) -> Path:
-    """Small multiples, one per steady-state metric, one line per policy."""
+    """Small multiples, one per steady-state metric, one line per policy.
+
+    Every number is simulated, and the figure says so.
+    """
     with summary_csv.open(newline="") as f:
         rows = list(csv.DictReader(f))
     policies = list(dict.fromkeys(r["policy"] for r in rows))  # first-seen order, stable
@@ -94,7 +97,16 @@ def plot_sweep(summary_csv: Path, out_dir: Path) -> Path:
         ax.set_xlabel("Target offered load", color=INK, fontsize=9)
     handles, labels = axes.flat[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=len(policies), frameon=False, fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    seeds = sorted({int(r["seeds"]) for r in rows})
+    fig.text(
+        0.01,
+        0.01,
+        f"Simulated results. Mean over {'-'.join(map(str, seeds))} seeds, bars are one "
+        "standard deviation. Steady-state window only.",
+        fontsize=8,
+        color=MUTED,
+    )
+    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     path = out_dir / "sweep.png"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150)

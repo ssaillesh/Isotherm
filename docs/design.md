@@ -84,7 +84,8 @@ sized for the row the sim models. `replay` depends on PyYAML for this.
 ## Load sweep (experiments/sweep.py)
 
 `make sweep-traces` writes one trace per (target load, seed) plus `index.csv`;
-`make sweep` runs every policy on each one against the sim. Rules, enforced by both CLIs:
+`make sweep` runs every policy on each one against the sim. Every sweep result is
+simulated, and `sweep.png` is labelled so. Rules, enforced by both CLIs:
 
 - **At least 2,000 jobs per trace and 5 seeds per load.** With 2,000 jobs the measured
   offered load of a seed still lands within about ±6% of the target (0.85 to 0.92 at a
