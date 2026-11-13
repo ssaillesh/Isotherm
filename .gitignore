@@ -1,0 +1,27 @@
+# Generated from proto/isotherm.proto: never committed, never hand-edited.
+/sim/gen/*
+/replay/gen/*
+/experiments/gen/*
+/ml/gen/*
+!/*/gen/__init__.py
+/scheduler/gen/
+
+# Raw traces, datasets, trained models
+/data/*
+!/data/.gitkeep
+
+# Local cluster credentials and rendered configs
+/deploy/k8s/*.local.yaml
+/deploy/k8s/kubeconfig.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/

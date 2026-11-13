@@ -1,0 +1,17 @@
+# GPU junction model per GPU:  C * dT/dt = P - (T - T_inlet) / R   (see docs/assumptions.md)
+gpus:
+  h100_sxm:
+    tdp_w: 700
+    r_c_per_w: 0.075       # junction-to-inlet thermal resistance (assumption)
+    c_j_per_c: 900         # thermal capacitance; tau = R*C ~ 68 s (assumption)
+    throttle_c: 87         # clocks slow down above this (assumption)
+  a100_sxm:
+    tdp_w: 400
+    r_c_per_w: 0.12        # (assumption)
+    c_j_per_c: 650         # tau ~ 78 s (assumption)
+    throttle_c: 85         # (assumption)
+
+node:
+  gpus_per_node: 8
+  base_w: 1500             # CPUs, memory, NICs, fans (assumption)
+  idle_gpu_fraction: 0.1   # an idle GPU draws about this share of its TDP (assumption)

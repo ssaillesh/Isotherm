@@ -1,0 +1,53 @@
+# One job per component, so a break in one can't hide behind another.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    name: ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [sim, replay, experiments, ml]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          cache-dependency-glob: ${{ matrix.component }}/uv.lock
+      - run: make test-${{ matrix.component }}
+
+  scheduler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: scheduler/go.mod
+          cache-dependency-path: scheduler/go.sum
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: make tools-go
+      - run: make test-scheduler
+
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: make test-deploy
+
+  image:
+    name: image (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [sim, replay, experiments, ml, scheduler]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f ${{ matrix.component }}/Dockerfile -t isotherm-${{ matrix.component }} .

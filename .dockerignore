@@ -1,0 +1,14 @@
+# Images regenerate stubs from proto/ and build their own envs.
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/gen/*_pb2*.py
+**/gen/*_pb2*.pyi
+scheduler/gen
+data
+docs
+.git
+.github
+deploy/k8s/*.local.yaml
+deploy/k8s/kubeconfig.local

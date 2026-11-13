@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: isotherm
+    folder: Isotherm
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,23 @@
+# Rack row layout and cooling. These are modelling assumptions:
+# record the source for each value in docs/assumptions.md.
+layout:
+  n_racks: 10
+  slots_per_rack: 4        # 8 GPU servers per rack, slot 0 is the bottom
+  # GPU model in each rack, rack 0 first. Keys refer to gpus: in gpu_specs.yaml.
+  gpu_model_by_rack: [h100_sxm, h100_sxm, h100_sxm, h100_sxm, h100_sxm,
+                      a100_sxm, a100_sxm, a100_sxm, a100_sxm, a100_sxm]
+  node_name_format: "rack{rack:02d}-slot{slot}"   # used by sim/ and deploy/kwok/
+
+cooling:
+  supply_temp_c: 18.0      # cold air from the cooling unit
+  inlet_limit_c: 27.0      # ASHRAE recommended upper inlet temperature
+
+air:
+  airflow_kg_s: 0.7        # air mass flow through each server
+  cp_j_kgk: 1005.0         # specific heat of air
+
+recirculation:
+  max_fraction: 0.25       # most of one server's exhaust that loops back to inlets
+  length_scale: 1.5        # how fast recirculation fades with distance, in slots
+  height_bias: 1.0         # extra pull toward top slots (hot air rises over the rack)
+  end_bias: 0.5            # extra pull toward end of row racks (air wraps around the ends)

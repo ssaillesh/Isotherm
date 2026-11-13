@@ -1,0 +1,27 @@
+[project]
+name = "isotherm-replay"
+version = "0.1.0"
+description = "Trace loader and pod replayer for the kwok cluster"
+requires-python = ">=3.11"
+dependencies = [
+  "grpcio>=1.66",
+  "protobuf>=5.28",
+  "kubernetes>=30",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "grpcio-tools>=1.66"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["gen"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

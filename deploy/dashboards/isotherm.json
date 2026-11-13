@@ -1,0 +1,37 @@
+{
+  "title": "Isotherm row",
+  "uid": "isotherm-row",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Hottest inlet (°C)",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(isotherm_node_inlet_c)", "legendFormat": "max inlet" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Hottest GPU (°C)",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(isotherm_gpu_temp_c)", "legendFormat": "max GPU" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Row power (kW)",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(isotherm_node_power_w) / 1000", "legendFormat": "row" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Throttled GPUs",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(isotherm_gpu_throttled)", "legendFormat": "throttled" }]
+    }
+  ]
+}

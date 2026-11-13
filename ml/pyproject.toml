@@ -1,0 +1,30 @@
+[project]
+name = "isotherm-ml"
+version = "0.1.0"
+description = "Surrogate dataset generation (via the sim's rollout oracle) and training"
+requires-python = ">=3.11"
+dependencies = [
+  "grpcio>=1.66",
+  "protobuf>=5.28",
+  "numpy>=1.26",
+  # Keep in step with sim's `learned` extra: the sim unpickles this model.
+  "scikit-learn>=1.5",
+  "joblib>=1.4",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "grpcio-tools>=1.66"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["gen"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

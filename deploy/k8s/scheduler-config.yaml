@@ -1,0 +1,24 @@
+# kube-scheduler config for isotherm-scheduler. It runs as a second scheduler next to
+# default-scheduler, so baselines (schedulerName: default-scheduler) and Isotherm
+# (schedulerName: isotherm-scheduler) can share one kwok cluster.
+#
+# `make scheduler` renders ${KUBECONFIG_PATH} and passes the result via --config.
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+leaderElection:
+  leaderElect: false
+clientConnection:
+  kubeconfig: ${KUBECONFIG_PATH}
+profiles:
+  - schedulerName: isotherm-scheduler
+    plugins:
+      preScore:
+        enabled:
+          - name: Isotherm
+      score:
+        enabled:
+          - name: Isotherm
+            weight: 10
+      postBind:
+        enabled:
+          - name: Isotherm

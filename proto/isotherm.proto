@@ -1,0 +1,136 @@
+// The only contract between components. Go (scheduler/) and Python (sim/, replay/,
+// experiments/, ml/) talk exclusively through this service.
+//
+// Generated code lives in each component's gen/ directory and is never hand-edited:
+// run `make proto` after changing this file.
+//
+// Ownership rule: only the simulator computes temperatures. Clients ask; they never
+// calculate thermal quantities themselves.
+syntax = "proto3";
+
+package isotherm.v1;
+
+option go_package = "isotherm/scheduler/gen/isothermpb;isothermpb";
+
+service ThermalSim {
+  // Snapshot of every node and GPU in the simulated cluster.
+  rpc GetState(GetStateRequest) returns (ClusterState);
+
+  // Predict the thermal outcome of placing `workload` on each candidate node.
+  // Called by the scheduler's PreScore phase, once per pod, for all candidates.
+  rpc ScoreCandidates(ScoreRequest) returns (ScoreResponse);
+
+  // Bind or unbind a workload so the simulator's load matches the cluster.
+  rpc ApplyEvent(PodEvent) returns (ApplyEventResponse);
+
+  // Advance simulated time. Workloads with a duration expire automatically.
+  rpc Step(StepRequest) returns (ClusterState);
+
+  // Return the simulator to its initial state (empty cluster, t = 0).
+  rpc Reset(ResetRequest) returns (ClusterState);
+}
+
+message Workload {
+  // Stable id shared by every component: "<namespace>/<pod name>".
+  string workload_id = 1;
+  int32 gpu_count = 2;
+  // Expected per-GPU utilization in [0, 1].
+  double gpu_util = 3;
+  // Runtime in simulated seconds; 0 means "until unbound".
+  double duration_s = 4;
+}
+
+message GpuState {
+  int32 index = 1;
+  double temp_c = 2;
+  double power_w = 3;
+  double util = 4;
+  bool throttled = 5;
+  // Empty when the GPU is free.
+  string workload_id = 6;
+}
+
+message NodeState {
+  string name = 1;
+  string rack = 2;
+  // Position in the rack, 0 = bottom.
+  int32 slot = 3;
+  string gpu_model = 4;
+  double inlet_c = 5;
+  int32 free_gpus = 6;
+  repeated GpuState gpus = 7;
+  // Temperature at which this node's GPUs start throttling.
+  double throttle_c = 8;
+  // Whole-server power (base + GPUs) and the resulting exhaust air temperature.
+  double power_w = 9;
+  double exhaust_c = 10;
+  // Inlet air limit for this server (ASHRAE recommended upper bound by default).
+  double inlet_limit_c = 11;
+}
+
+message ClusterState {
+  double sim_time_s = 1;
+  repeated NodeState nodes = 2;
+}
+
+message GetStateRequest {}
+
+message ScoreRequest {
+  Workload workload = 1;
+  repeated string candidate_nodes = 2;
+  // How far ahead to look, in simulated seconds. 0 uses the simulator default.
+  double horizon_s = 3;
+  // Which predictor to use ("rollout", "learned"). Empty uses the simulator default.
+  string predictor = 4;
+}
+
+message CandidateScore {
+  string node = 1;
+  // Hottest GPU anywhere in the row after placement, over the horizon.
+  double predicted_peak_c = 2;
+  // min(inlet_headroom_c, gpu_headroom_c): the binding thermal margin. This is the
+  // single number the scheduler ranks on.
+  double headroom_c = 3;
+  // False if the node lacks free GPUs, or placement would push any inlet over its
+  // limit or make any GPU throttle.
+  bool feasible = 4;
+  // Surrogate input features for this (state, workload, node). Opaque to clients;
+  // ml/ uses them as training inputs. Schema named by ScoreResponse.feature_schema.
+  repeated double features = 5;
+  // Hottest server inlet in the row after placement, over the horizon.
+  double predicted_peak_inlet_c = 6;
+  // Smallest (inlet_limit_c - inlet_c) across the row.
+  double inlet_headroom_c = 7;
+  // Smallest (throttle_c - temp_c) across every GPU in the row.
+  double gpu_headroom_c = 8;
+}
+
+message ScoreResponse {
+  repeated CandidateScore scores = 1;
+  // Predictor that produced the scores.
+  string predictor = 2;
+  string feature_schema = 3;
+}
+
+message PodEvent {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_BIND = 1;
+    KIND_UNBIND = 2;
+  }
+  Kind kind = 1;
+  Workload workload = 2;
+  // Required for KIND_BIND.
+  string node = 3;
+}
+
+message ApplyEventResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
+message StepRequest {
+  double dt_s = 1;
+}
+
+message ResetRequest {}

@@ -1,0 +1,32 @@
+[project]
+name = "isotherm-sim"
+version = "0.1.0"
+description = "Thermal simulator for GPU racks, served over gRPC (proto/isotherm.proto)"
+requires-python = ">=3.11"
+dependencies = [
+  "grpcio>=1.66",
+  "protobuf>=5.28",
+  "numpy>=1.26",
+  "pyyaml>=6.0",
+  "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+learned = ["scikit-learn>=1.5", "joblib>=1.4"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "grpcio-tools>=1.66"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["gen"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
