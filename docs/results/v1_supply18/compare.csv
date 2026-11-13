@@ -1,0 +1,201 @@
+target_load,policy,other,metric,n,mean_diff,std_diff,lower,better,verdict
+0.3,isotherm,random,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.3,isotherm,random,window_placed,5,0.0,0.0,0,,no difference
+0.3,isotherm,random,mean_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,random,p95_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,random,peak_temp_c,5,-0.6874934006533323,0.28517520080712194,5,5,difference
+0.3,isotherm,random,mean_busy_temp_c,5,-0.6954043028807504,0.10049958782706225,5,5,difference
+0.3,isotherm,random,peak_inlet_c,5,-0.6818572678342086,0.05312699081624456,5,5,difference
+0.3,isotherm,random,min_headroom_c,5,0.6818572678342086,0.05312699081624456,0,5,difference
+0.3,isotherm,random,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,random,sim_end_s,5,0.0,0.0,0,,no difference
+0.3,isotherm,binpack,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.3,isotherm,binpack,window_placed,5,0.0,0.0,0,,no difference
+0.3,isotherm,binpack,mean_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,binpack,p95_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,binpack,peak_temp_c,5,-1.287051367413173,0.19866880625524835,5,5,difference
+0.3,isotherm,binpack,mean_busy_temp_c,5,-2.9748957836894077,0.052565824237579745,5,5,difference
+0.3,isotherm,binpack,peak_inlet_c,5,-1.1166406295306657,0.047055881079286634,5,5,difference
+0.3,isotherm,binpack,min_headroom_c,5,1.1166406295306657,0.047055881079286634,0,5,difference
+0.3,isotherm,binpack,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,binpack,sim_end_s,5,0.0,0.0,0,,no difference
+0.3,isotherm,spread,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.3,isotherm,spread,window_placed,5,0.0,0.0,0,,no difference
+0.3,isotherm,spread,mean_wait_s,5,-0.5113819848473413,0.26531201292232964,5,5,difference
+0.3,isotherm,spread,p95_wait_s,5,-0.08379999999451684,0.03408372045662806,5,5,difference
+0.3,isotherm,spread,peak_temp_c,5,-0.4688011452502764,0.15054571482031576,5,5,difference
+0.3,isotherm,spread,mean_busy_temp_c,5,-0.5999569817075254,0.07163761520103144,5,5,difference
+0.3,isotherm,spread,peak_inlet_c,5,-0.6485260305587388,0.1404163345565519,5,5,difference
+0.3,isotherm,spread,min_headroom_c,5,0.6485260305587388,0.1404163345565519,0,5,difference
+0.3,isotherm,spread,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,spread,sim_end_s,5,0.0,0.0,0,,no difference
+0.3,isotherm,coolest-inlet,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.3,isotherm,coolest-inlet,window_placed,5,0.0,0.0,0,,no difference
+0.3,isotherm,coolest-inlet,mean_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,coolest-inlet,p95_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,coolest-inlet,peak_temp_c,5,0.019917953370836017,0.17027472262702417,3,3,no difference
+0.3,isotherm,coolest-inlet,mean_busy_temp_c,5,-0.31996978062985165,0.027545858217406894,5,5,difference
+0.3,isotherm,coolest-inlet,peak_inlet_c,5,-0.05177763481547544,0.04101804205045165,4,4,difference
+0.3,isotherm,coolest-inlet,min_headroom_c,5,0.05177763481547544,0.04101804205045165,1,4,difference
+0.3,isotherm,coolest-inlet,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,coolest-inlet,sim_end_s,5,0.0,0.0,0,,no difference
+0.3,isotherm,ortools,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.3,isotherm,ortools,window_placed,5,0.0,0.0,0,,no difference
+0.3,isotherm,ortools,mean_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,ortools,p95_wait_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,ortools,peak_temp_c,5,0.013989932415796602,0.1438560674324523,4,4,no difference
+0.3,isotherm,ortools,mean_busy_temp_c,5,-0.20608209446264283,0.06890347752574831,5,5,difference
+0.3,isotherm,ortools,peak_inlet_c,5,0.009322247089749425,0.01286638289604111,1,1,no difference
+0.3,isotherm,ortools,min_headroom_c,5,-0.009322247089749425,0.01286638289604111,4,1,no difference
+0.3,isotherm,ortools,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.3,isotherm,ortools,sim_end_s,5,0.0,0.0,0,,no difference
+0.5,isotherm,random,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.5,isotherm,random,window_placed,5,0.0,0.0,0,,no difference
+0.5,isotherm,random,mean_wait_s,5,-1.1004504344761337,1.7885943932016422,5,5,no difference
+0.5,isotherm,random,p95_wait_s,5,-0.029200000000491853,0.022851695779922777,5,5,difference
+0.5,isotherm,random,peak_temp_c,5,-0.46051330798023854,0.4222092294895775,5,5,difference
+0.5,isotherm,random,mean_busy_temp_c,5,-0.4743322230490293,0.04070435361608339,5,5,difference
+0.5,isotherm,random,peak_inlet_c,5,-0.5357875849580175,0.2538322142292928,5,5,difference
+0.5,isotherm,random,min_headroom_c,5,0.5357875849580175,0.2538322142292928,0,5,difference
+0.5,isotherm,random,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.5,isotherm,random,sim_end_s,5,0.0,0.0,0,,no difference
+0.5,isotherm,binpack,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.5,isotherm,binpack,window_placed,5,0.0,0.0,0,,no difference
+0.5,isotherm,binpack,mean_wait_s,5,0.04797979797979792,0.10728608982953523,0,0,no difference
+0.5,isotherm,binpack,p95_wait_s,5,0.004399999999441207,0.009838699099749574,0,0,no difference
+0.5,isotherm,binpack,peak_temp_c,5,-0.9024074713106159,0.1479430506249815,5,5,difference
+0.5,isotherm,binpack,mean_busy_temp_c,5,-2.0193070443062267,0.14121401459612207,5,5,difference
+0.5,isotherm,binpack,peak_inlet_c,5,-0.7760069214000105,0.24340842125952558,5,5,difference
+0.5,isotherm,binpack,min_headroom_c,5,0.7760069214000105,0.24340842125952558,0,5,difference
+0.5,isotherm,binpack,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.5,isotherm,binpack,sim_end_s,5,0.0,0.0,0,,no difference
+0.5,isotherm,spread,achieved_utilisation,5,0.00011908495874626279,0.0003565872037029375,2,,no difference
+0.5,isotherm,spread,window_placed,5,0.0,0.0,0,,no difference
+0.5,isotherm,spread,mean_wait_s,5,-14.661043140392554,4.3688153056042225,5,5,difference
+0.5,isotherm,spread,p95_wait_s,5,-75.40999999999967,31.31157427373968,5,5,difference
+0.5,isotherm,spread,peak_temp_c,5,-0.3869097105159682,0.27414172514320334,5,5,difference
+0.5,isotherm,spread,mean_busy_temp_c,5,-0.805031588688226,0.07654279393343734,5,5,difference
+0.5,isotherm,spread,peak_inlet_c,5,-0.47739106227143535,0.2981066032797102,4,4,difference
+0.5,isotherm,spread,min_headroom_c,5,0.47739106227143535,0.2981066032797102,1,4,difference
+0.5,isotherm,spread,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.5,isotherm,spread,sim_end_s,5,-2.0,4.47213595499958,1,,no difference
+0.5,isotherm,coolest-inlet,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.5,isotherm,coolest-inlet,window_placed,5,0.0,0.0,0,,no difference
+0.5,isotherm,coolest-inlet,mean_wait_s,5,0.027777777777777856,0.062112999374994336,0,0,no difference
+0.5,isotherm,coolest-inlet,p95_wait_s,5,0.0033999999999650755,0.007602631123421191,0,0,no difference
+0.5,isotherm,coolest-inlet,peak_temp_c,5,0.008777838252132141,0.3240544320017062,3,3,no difference
+0.5,isotherm,coolest-inlet,mean_busy_temp_c,5,-0.1665148666094808,0.04856846809960146,5,5,difference
+0.5,isotherm,coolest-inlet,peak_inlet_c,5,-0.06197859777192889,0.15047399487805152,3,3,no difference
+0.5,isotherm,coolest-inlet,min_headroom_c,5,0.06197859777192889,0.15047399487805152,2,3,no difference
+0.5,isotherm,coolest-inlet,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.5,isotherm,coolest-inlet,sim_end_s,5,0.0,0.0,0,,no difference
+0.5,isotherm,ortools,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.5,isotherm,ortools,window_placed,5,0.0,0.0,0,,no difference
+0.5,isotherm,ortools,mean_wait_s,5,-0.002525252525252419,0.005646636306817414,1,1,no difference
+0.5,isotherm,ortools,p95_wait_s,5,0.000999999999476131,0.002236067976328383,0,0,no difference
+0.5,isotherm,ortools,peak_temp_c,5,-0.027780681189591407,0.27847905964145625,3,3,no difference
+0.5,isotherm,ortools,mean_busy_temp_c,5,-0.08983922489280474,0.06340448925329992,5,5,difference
+0.5,isotherm,ortools,peak_inlet_c,5,-0.1091922612774205,0.07148079474882364,5,5,difference
+0.5,isotherm,ortools,min_headroom_c,5,0.1091922612774205,0.07148079474882364,0,5,difference
+0.5,isotherm,ortools,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.5,isotherm,ortools,sim_end_s,5,0.0,0.0,0,,no difference
+0.7,isotherm,random,achieved_utilisation,5,-0.00012909881303913018,0.0008777808199856984,3,,no difference
+0.7,isotherm,random,window_placed,5,0.0,0.0,0,,no difference
+0.7,isotherm,random,mean_wait_s,5,-15.211501980677928,6.226744576821028,5,5,difference
+0.7,isotherm,random,p95_wait_s,5,-62.57739999999903,50.88270782692285,5,5,difference
+0.7,isotherm,random,peak_temp_c,5,-0.2624465240312901,0.23908843639476027,5,5,difference
+0.7,isotherm,random,mean_busy_temp_c,5,-0.381688019075176,0.09553140126167221,5,5,difference
+0.7,isotherm,random,peak_inlet_c,5,0.04030563906317397,0.042685727913624565,1,1,no difference
+0.7,isotherm,random,min_headroom_c,5,-0.04030563906317397,0.042685727913624565,4,1,no difference
+0.7,isotherm,random,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.7,isotherm,random,sim_end_s,5,0.0,0.0,0,,no difference
+0.7,isotherm,binpack,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.7,isotherm,binpack,window_placed,5,0.0,0.0,0,,no difference
+0.7,isotherm,binpack,mean_wait_s,5,0.4540982514085263,0.6301265131453703,0,0,no difference
+0.7,isotherm,binpack,p95_wait_s,5,0.016199999999662394,0.025596874809340087,1,1,no difference
+0.7,isotherm,binpack,peak_temp_c,5,-0.6880751847347966,0.31278502056415636,5,5,difference
+0.7,isotherm,binpack,mean_busy_temp_c,5,-0.99835867918149,0.14016763187512205,5,5,difference
+0.7,isotherm,binpack,peak_inlet_c,5,-0.05696181310342752,0.07627162135899382,3,3,no difference
+0.7,isotherm,binpack,min_headroom_c,5,0.05696181310342752,0.07627162135899382,2,3,no difference
+0.7,isotherm,binpack,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.7,isotherm,binpack,sim_end_s,5,0.0,0.0,0,,no difference
+0.7,isotherm,spread,achieved_utilisation,5,0.0016961384484364128,0.002501727401878052,2,,no difference
+0.7,isotherm,spread,window_placed,5,0.0,0.0,0,,no difference
+0.7,isotherm,spread,mean_wait_s,5,-52.46037252286352,15.153507379847598,5,5,difference
+0.7,isotherm,spread,p95_wait_s,5,-397.43340000000023,146.16064873384988,5,5,difference
+0.7,isotherm,spread,peak_temp_c,5,-0.30285574439224944,0.40315495176321003,3,3,no difference
+0.7,isotherm,spread,mean_busy_temp_c,5,-0.7064300671564695,0.07609687396743207,5,5,difference
+0.7,isotherm,spread,peak_inlet_c,5,0.07730621700246516,0.07783129669686306,1,1,no difference
+0.7,isotherm,spread,min_headroom_c,5,-0.07730621700246516,0.07783129669686306,4,1,no difference
+0.7,isotherm,spread,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.7,isotherm,spread,sim_end_s,5,-182.0,353.7230555109463,2,,no difference
+0.7,isotherm,coolest-inlet,achieved_utilisation,5,0.0,0.0,0,,no difference
+0.7,isotherm,coolest-inlet,window_placed,5,0.0,0.0,0,,no difference
+0.7,isotherm,coolest-inlet,mean_wait_s,5,0.4389558645417562,0.6508899045336609,1,1,no difference
+0.7,isotherm,coolest-inlet,p95_wait_s,5,0.020600000000194997,0.0342315643816237,2,2,no difference
+0.7,isotherm,coolest-inlet,peak_temp_c,5,-0.14537997938997477,0.30702168552215314,3,3,no difference
+0.7,isotherm,coolest-inlet,mean_busy_temp_c,5,-0.08089779625966571,0.0332557206667713,5,5,difference
+0.7,isotherm,coolest-inlet,peak_inlet_c,5,0.055334738959045636,0.10335523425743848,2,2,no difference
+0.7,isotherm,coolest-inlet,min_headroom_c,5,-0.055334738959045636,0.10335523425743848,3,2,no difference
+0.7,isotherm,coolest-inlet,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.7,isotherm,coolest-inlet,sim_end_s,5,0.0,0.0,0,,no difference
+0.7,isotherm,ortools,achieved_utilisation,5,8.769562871020486e-05,0.0001960933871256003,0,,no difference
+0.7,isotherm,ortools,window_placed,5,0.0,0.0,0,,no difference
+0.7,isotherm,ortools,mean_wait_s,5,-1.3917632986102133,1.730420773694801,5,5,no difference
+0.7,isotherm,ortools,p95_wait_s,5,-0.00860000000029686,0.07820358048065246,4,4,no difference
+0.7,isotherm,ortools,peak_temp_c,5,-0.030929007018781363,0.3830044317614236,3,3,no difference
+0.7,isotherm,ortools,mean_busy_temp_c,5,-0.0612384033710228,0.02388995930171652,5,5,difference
+0.7,isotherm,ortools,peak_inlet_c,5,0.18087641489016376,0.16972086523602314,1,1,difference
+0.7,isotherm,ortools,min_headroom_c,5,-0.18087641489016376,0.16972086523602314,4,1,difference
+0.7,isotherm,ortools,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.7,isotherm,ortools,sim_end_s,5,0.0,0.0,0,,no difference
+0.9,isotherm,random,achieved_utilisation,5,0.009267323064584531,0.016013083698916283,1,,no difference
+0.9,isotherm,random,window_placed,5,0.0,0.0,0,,no difference
+0.9,isotherm,random,mean_wait_s,5,-100.75901197344984,48.45872982966336,5,5,difference
+0.9,isotherm,random,p95_wait_s,5,-979.8064000000006,700.191045474948,5,5,difference
+0.9,isotherm,random,peak_temp_c,5,-0.12618191412233556,0.24895981046835514,4,4,no difference
+0.9,isotherm,random,mean_busy_temp_c,5,-0.10478889307038201,0.12102180413341859,4,4,no difference
+0.9,isotherm,random,peak_inlet_c,5,0.03741612539741936,0.03807564648429294,1,1,no difference
+0.9,isotherm,random,min_headroom_c,5,-0.03741612539741936,0.03807564648429294,4,1,no difference
+0.9,isotherm,random,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.9,isotherm,random,sim_end_s,5,-776.0,1195.1066897980281,3,,no difference
+0.9,isotherm,binpack,achieved_utilisation,5,-0.0005578121981039575,0.0012256797477789559,3,,no difference
+0.9,isotherm,binpack,window_placed,5,0.0,0.0,0,,no difference
+0.9,isotherm,binpack,mean_wait_s,5,6.3741716273207265,5.302871779028536,0,0,difference
+0.9,isotherm,binpack,p95_wait_s,5,66.35059999999957,76.25723156396433,1,1,no difference
+0.9,isotherm,binpack,peak_temp_c,5,-0.3406726118576927,0.08030787998879159,5,5,difference
+0.9,isotherm,binpack,mean_busy_temp_c,5,-0.1613110588047789,0.1509898781498704,5,5,difference
+0.9,isotherm,binpack,peak_inlet_c,5,0.05324881461921578,0.04898350325138649,1,1,difference
+0.9,isotherm,binpack,min_headroom_c,5,-0.05324881461921578,0.04898350325138649,4,1,difference
+0.9,isotherm,binpack,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.9,isotherm,binpack,sim_end_s,5,40.0,89.44271909999159,0,,no difference
+0.9,isotherm,spread,achieved_utilisation,5,0.019900674993420207,0.0211989508580863,1,,no difference
+0.9,isotherm,spread,window_placed,5,0.0,0.0,0,,no difference
+0.9,isotherm,spread,mean_wait_s,5,-280.3755094410924,165.16265895074773,5,5,difference
+0.9,isotherm,spread,p95_wait_s,5,-1963.5645999999992,1272.8111567284059,5,5,difference
+0.9,isotherm,spread,peak_temp_c,5,-0.041429555347886546,0.19647833407933848,2,2,no difference
+0.9,isotherm,spread,mean_busy_temp_c,5,-0.24550198827521824,0.13746875438548598,5,5,difference
+0.9,isotherm,spread,peak_inlet_c,5,0.04585816425793112,0.09055584048020773,1,1,no difference
+0.9,isotherm,spread,min_headroom_c,5,-0.04585816425793112,0.09055584048020773,4,1,no difference
+0.9,isotherm,spread,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.9,isotherm,spread,sim_end_s,5,-1650.0,1866.8958192679097,5,,no difference
+0.9,isotherm,coolest-inlet,achieved_utilisation,5,-4.3003623372128705e-05,4.594251548972102e-05,4,,no difference
+0.9,isotherm,coolest-inlet,window_placed,5,0.0,0.0,0,,no difference
+0.9,isotherm,coolest-inlet,mean_wait_s,5,1.3869828684883345,1.7295757275892507,1,1,no difference
+0.9,isotherm,coolest-inlet,p95_wait_s,5,20.055199999999605,37.852200803914876,2,2,no difference
+0.9,isotherm,coolest-inlet,peak_temp_c,5,-0.17782848691548736,0.18922675500544459,4,4,no difference
+0.9,isotherm,coolest-inlet,mean_busy_temp_c,5,-0.0208540097005951,0.029358772925950148,3,3,no difference
+0.9,isotherm,coolest-inlet,peak_inlet_c,5,-0.0370777181927366,0.042562852190996626,4,4,no difference
+0.9,isotherm,coolest-inlet,min_headroom_c,5,0.0370777181927366,0.042562852190996626,1,4,no difference
+0.9,isotherm,coolest-inlet,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.9,isotherm,coolest-inlet,sim_end_s,5,-2.0,24.899799195977465,1,,no difference
+0.9,isotherm,ortools,achieved_utilisation,5,0.006976068932448598,0.012749390696142946,2,,no difference
+0.9,isotherm,ortools,window_placed,5,0.0,0.0,0,,no difference
+0.9,isotherm,ortools,mean_wait_s,5,-76.16935720853296,58.796998125040915,5,5,difference
+0.9,isotherm,ortools,p95_wait_s,5,111.41320000000015,247.63342810836417,1,1,no difference
+0.9,isotherm,ortools,peak_temp_c,5,0.08362940098519119,0.10820024103256098,1,1,no difference
+0.9,isotherm,ortools,mean_busy_temp_c,5,0.062190403950010874,0.16747005867645728,2,2,no difference
+0.9,isotherm,ortools,peak_inlet_c,5,0.10900591124756147,0.01909927187226887,0,0,difference
+0.9,isotherm,ortools,min_headroom_c,5,-0.10900591124756147,0.01909927187226887,5,0,difference
+0.9,isotherm,ortools,throttled_gpu_s,5,0.0,0.0,0,0,no difference
+0.9,isotherm,ortools,sim_end_s,5,-1098.0,1940.5205487188225,2,,no difference

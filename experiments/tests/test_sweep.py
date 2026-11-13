@@ -49,7 +49,7 @@ def test_window_offered_load_counts_only_window_arrivals():
 
 def test_steady_state_metrics_ignore_ticks_outside_window():
     def tick(t, busy, peak):
-        return Tick(t, busy, busy, peak, busy * 50.0, 20.0, 5.0, 0)
+        return Tick(t, busy, busy, peak, busy * 50.0, 20.0, 5.0, 0, 0.0, 0, 0.0)
 
     traj = Trajectory(tick_s=10.0, capacity_gpus=10)
     traj.ticks = [tick(10, 10, 99.0), tick(20, 4, 60.0), tick(30, 6, 70.0), tick(40, 10, 99.0)]
@@ -166,3 +166,68 @@ def test_rows_roundtrip_summary_and_plot(tmp_path):
     with path.open(newline="") as f:
         assert len(list(csv.DictReader(f))) == 4
     assert plot_sweep(path, tmp_path / "plots").stat().st_size > 0
+
+
+class HotSim(FakeSim):
+    """FakeSim, but the state at t = 20 s (the tick (10, 20]) breaks the chosen limits by 1°C."""
+
+    def __init__(self, hot_inlets=(), hot_gpu=None):
+        self.hot_inlets, self.hot_gpu = set(hot_inlets), hot_gpu
+        super().__init__()
+
+    def _state(self):
+        state = super()._state()
+        if self.t == 20.0:
+            for n in state.nodes:
+                if n.name in self.hot_inlets:
+                    n.inlet_c = n.inlet_limit_c + 1.0
+                if n.name == self.hot_gpu:
+                    n.gpus[0].temp_c = n.throttle_c + 1.0
+        return state
+
+
+LIMIT_FIELDS = ("inlet_exceedance_cs", "time_over_inlet_s", "gpu_exceedance_cs")
+
+
+def _limits(m):
+    return tuple(getattr(m, f) for f in LIMIT_FIELDS)
+
+
+def test_one_server_1c_over_inlet_limit_for_10s_is_10_cs():
+    m = run_policy(HotSim(hot_inlets=["n-hot"]), jobs_every(20.0, 5), SpreadPolicy())
+    assert _limits(m) == (10.0, 10.0, 0.0)
+
+
+def test_inlet_time_counts_seconds_not_servers():
+    m = run_policy(HotSim(hot_inlets=["n-hot", "n-cool"]), jobs_every(20.0, 5), SpreadPolicy())
+    assert _limits(m) == (20.0, 10.0, 0.0)  # two servers 1°C over, in the same 10 s
+
+
+def test_one_gpu_1c_over_throttle_for_10s_is_10_cs():
+    m = run_policy(HotSim(hot_gpu="n-mid"), jobs_every(20.0, 5), SpreadPolicy())
+    assert _limits(m) == (0.0, 0.0, 10.0)
+
+
+def test_cool_runs_break_no_limits():
+    assert _limits(run_policy(FakeSim(), jobs_every(20.0, 5), SpreadPolicy())) == (0.0, 0.0, 0.0)
+    row = run_steady_state(FakeSim(), jobs_every(10.0, 11), SpreadPolicy(), 0.5, 0)
+    assert _limits(row) == (0.0, 0.0, 0.0)
+
+
+def test_steady_state_counts_limits_inside_the_window_only():
+    jobs = jobs_every(10.0, 11)  # arrivals 0..100 s, window [10, 90)
+    hot = HotSim(hot_inlets=["n-hot"], hot_gpu="n-hot")
+    row = run_steady_state(hot, jobs, SpreadPolicy(), 0.5, 0)
+    assert _limits(row) == (10.0, 10.0, 10.0)  # the tick ending at 20 s is in the window
+    narrow = run_steady_state(hot, jobs, SpreadPolicy(), 0.5, 0, window=(0.3, 0.9))
+    assert _limits(narrow) == (0.0, 0.0, 0.0)  # window [30, 90) leaves it out
+
+
+def test_resume_refuses_a_csv_with_other_columns(tmp_path):
+    old = tmp_path / "sweep.csv"
+    old.write_text("policy,target_load,seed,peak_temp_c\nbinpack,0.3,0,72.5\n")
+    with pytest.raises(ValueError, match="missing"):
+        read_rows(old)
+    empty = tmp_path / "empty.csv"
+    empty.write_text("")
+    assert read_rows(empty) == []

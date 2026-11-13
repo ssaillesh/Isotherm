@@ -1,5 +1,6 @@
 import pytest
-from check_equivalence import compare_rows, read_rows, speed_rows
+
+from check_equivalence import compare_rows, extra_columns, read_rows, speed_rows
 
 
 def _rows(**cols):
@@ -17,16 +18,26 @@ def test_last_digit_difference_is_reported():
     assert "peak_temp_c" in line and "72.50000000000001" in line
 
 
-def test_missing_rows_and_columns_are_reported():
+def test_missing_rows_are_reported():
     other = _rows(policy="spread")
     problems = compare_rows(_rows(), other, ("old", "new"))
     assert problems == [
         "('binpack', '0.3', '0'): only in old",
         "('spread', '0.3', '0'): only in new",
     ]
-    assert compare_rows(_rows(extra="1"), _rows()) == [
-        "('binpack', '0.3', '0') extra: 1 (A) != None (B)"
-    ]
+
+
+def test_extra_columns_are_listed_but_not_compared():
+    new, old = _rows(new_metric="0.0"), _rows()
+    assert compare_rows(new, old) == []
+    assert extra_columns(new, old, ("new", "v1")) == ["only in new (not compared): new_metric"]
+    assert extra_columns(old, new, ("v1", "new")) == ["only in new (not compared): new_metric"]
+    assert extra_columns(old, old) == []
+
+
+def test_shared_columns_still_compared_when_extras_exist():
+    [line] = compare_rows(_rows(new_metric="0.0", peak_temp_c="72.6"), _rows())
+    assert "peak_temp_c" in line and "72.6" in line
 
 
 def test_read_rows_keys_by_policy_load_seed(tmp_path):

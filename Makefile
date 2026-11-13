@@ -21,6 +21,7 @@ LOADS         ?= 0.3 0.5 0.7 0.9
 SEEDS         ?= 5
 SWEEP_JOBS    ?= 2000
 SWEEP_DIR     ?= data/sweep
+COMPARE_POLICY ?= isotherm
 
 PROTOC_GEN_GO_VERSION      := v1.35.2
 PROTOC_GEN_GO_GRPC_VERSION := v1.5.1
@@ -84,7 +85,7 @@ test-deploy: ## Test the kwok node generator
 
 # ---------------------------------------------------------------- run locally
 
-.PHONY: sim trace baselines sweep-traces sweep dataset train
+.PHONY: sim trace baselines sweep-traces sweep compare dataset train
 sim: proto-sim ## Run the thermal simulator (gRPC :50051, metrics :9100; METRICS_PORT=0 for sweeps)
 	cd sim && uv run python server.py --metrics-port $(METRICS_PORT)
 
@@ -105,6 +106,10 @@ sweep: proto-experiments ## Steady-state load sweep (needs `make sim METRICS_POR
 	  --index ../$(SWEEP_DIR)/index.csv --out ../$(RESULTS)/sweep.csv $(if $(RESUME),--resume)
 	cd experiments && uv run python plots.py ../$(RESULTS)/sweep_summary.csv --sweep \
 	  --out ../$(RESULTS)
+
+compare: proto-experiments ## Paired per-seed comparison of COMPARE_POLICY vs the rest -> $(RESULTS)/compare.csv
+	cd experiments && uv run python compare.py ../$(RESULTS)/sweep.csv \
+	  --policy $(COMPARE_POLICY) --out ../$(RESULTS)/compare.csv
 
 dataset: proto-ml ## Build a surrogate dataset from the sim's rollout oracle (needs `make sim`)
 	cd ml && uv run python dataset.py --sim $(SIM_ADDR) --out ../data/surrogate.npz

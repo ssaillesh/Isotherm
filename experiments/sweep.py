@@ -27,7 +27,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
-from simulate import Trajectory, simulate
+from simulate import Trajectory, limit_metrics, simulate
 from traces import TraceJob, read_trace
 
 log = logging.getLogger("isotherm.experiments.sweep")
@@ -65,6 +65,9 @@ class SweepRow:
     peak_inlet_c: float
     min_headroom_c: float
     throttled_gpu_s: float
+    inlet_exceedance_cs: float  # sum over servers and ticks of max(0, inlet - limit) x tick_s
+    time_over_inlet_s: float  # seconds in which any inlet is above its limit
+    gpu_exceedance_cs: float  # sum over GPUs and ticks of max(0, temp - throttle_c) x tick_s
     capacity_gpus: int
     sim_end_s: float
 
@@ -173,6 +176,7 @@ def steady_state_metrics(
         peak_inlet_c=max(k.peak_inlet_c for k in ticks),
         min_headroom_c=min(k.min_headroom_c for k in ticks),
         throttled_gpu_s=sum(k.throttled_gpus for k in ticks) * traj.tick_s,
+        **limit_metrics(ticks, traj.tick_s),
         capacity_gpus=traj.capacity_gpus,
         sim_end_s=traj.ticks[-1].t_s,
     )
@@ -235,10 +239,22 @@ def summary_path(out: Path) -> Path:
 
 
 def read_rows(path: Path) -> list[SweepRow]:
+    """Read a sweep.csv written by this version; ValueError if its columns differ."""
     types = {f.name: f.type for f in fields(SweepRow)}
     cast = {"str": str, "int": int, "float": float}
     with path.open(newline="") as f:
-        return [SweepRow(**{k: cast[types[k]](v) for k, v in r.items()}) for r in csv.DictReader(f)]
+        reader = csv.DictReader(f)
+        header = reader.fieldnames
+        if header is None:  # empty file, as append_row also allows
+            return []
+        if header != list(types):
+            missing = [c for c in types if c not in header]
+            extra = [c for c in header if c not in types]
+            raise ValueError(
+                f"{path} was written with different columns (missing {missing}, extra {extra});"
+                " write to a new --out instead"
+            )
+        return [SweepRow(**{k: cast[types[k]](v) for k, v in r.items()}) for r in reader]
 
 
 def append_row(row: SweepRow, path: Path) -> None:
@@ -285,11 +301,14 @@ def main() -> None:
         p.error(str(e))
     if args.out.exists() and not args.resume:
         p.error(f"{args.out} exists; pass --resume to continue it, or remove it")
-    done = (
-        {(r.policy, r.target_load, r.seed) for r in read_rows(args.out)}
-        if args.out.exists()
-        else set()
-    )
+    try:
+        done = (
+            {(r.policy, r.target_load, r.seed) for r in read_rows(args.out)}
+            if args.out.exists()
+            else set()
+        )
+    except ValueError as e:
+        p.error(str(e))
 
     with grpc.insecure_channel(args.sim) as channel:
         sim = pb_grpc.ThermalSimStub(channel)

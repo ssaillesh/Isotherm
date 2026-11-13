@@ -17,8 +17,9 @@ experiments code drives both, so this mode only checks changes on the sim side:
     uv run python check_equivalence.py sims localhost:50061 localhost:50062
 
 Rows, timings and simulator logs go to --out (default ../data/equivalence/). With --expect,
-both sides are also compared with the matching rows of a committed sweep.csv. Exit status 0
-means every comparison matched.
+both sides are also compared with the matching rows of a committed sweep.csv. Columns that
+both sides have must match exactly; a column only one side has (a metric added since) is
+listed for information and is not a mismatch. Exit status 0 means every comparison matched.
 """
 
 from __future__ import annotations
@@ -89,23 +90,41 @@ def read_times(path: Path) -> Times:
         return {tuple(r[k] for k in KEY): float(r["wall_s"]) for r in csv.DictReader(f)}
 
 
+def columns(rows: Rows) -> list[str]:
+    return list(dict.fromkeys(c for r in rows.values() for c in r))
+
+
 def compare_rows(a: Rows, b: Rows, names: tuple[str, str] = ("A", "B")) -> list[str]:
     """Every difference between two sets of rows, one line each; empty means identical.
 
-    Values are compared as the text in the CSV, so a difference in the last digit counts.
+    Every row must be on both sides. Only columns both sides have are compared (see
+    extra_columns for the rest). Values are compared as the text in the CSV, so a
+    difference in the last digit counts.
     """
     problems = []
+    shared = set(columns(a)) & set(columns(b))
     for key in [*a, *(k for k in b if k not in a)]:
         ra, rb = a.get(key), b.get(key)
         if ra is None or rb is None:
             problems.append(f"{key}: only in {names[1] if ra is None else names[0]}")
             continue
-        for col in [*ra, *(c for c in rb if c not in ra)]:
+        for col in [c for c in ra if c in shared]:
             if ra.get(col) != rb.get(col):
                 problems.append(
                     f"{key} {col}: {ra.get(col)} ({names[0]}) != {rb.get(col)} ({names[1]})"
                 )
     return problems
+
+
+def extra_columns(a: Rows, b: Rows, names: tuple[str, str] = ("A", "B")) -> list[str]:
+    """Columns only one side has, one line per side that has any; not compared."""
+    ca, cb = columns(a), columns(b)
+    notes = []
+    for name, mine, theirs in ((names[0], ca, cb), (names[1], cb, ca)):
+        only = [c for c in mine if c not in theirs]
+        if only:
+            notes.append(f"only in {name} (not compared): {', '.join(only)}")
+    return notes
 
 
 def speed_rows(a: Times, b: Times) -> list[tuple[str, str, float, float]]:
@@ -262,21 +281,28 @@ def main() -> int:
 
     rows = {side: read_rows(out / f"{side}.rows.csv") for side in "ab"}
     problems = compare_rows(rows["a"], rows["b"])
+    notes = extra_columns(rows["a"], rows["b"])
     if args.expect:
         expected = read_rows(args.expect)
         for side in "ab":
             subset = {k: expected[k] for k in rows[side] if k in expected}
-            problems += compare_rows(rows[side], subset, (side.upper(), args.expect.name))
+            names = (side.upper(), args.expect.name)
+            problems += compare_rows(rows[side], subset, names)
+            notes += extra_columns(rows[side], subset, names)
 
     print_speed(read_times(out / "a.times.csv"), read_times(out / "b.times.csv"))
     print(f"\nA: {labels[0]}\nB: {labels[1]}\nfiles: {out}")
     n = len(rows["a"])
+    if notes:
+        print("\nColumns not on both sides (information, not a mismatch):")
+        print("\n".join(f"  {line}" for line in notes))
     if problems:
         print(f"\nMISMATCH ({len(problems)} differences):")
         print("\n".join(f"  {line}" for line in problems))
         return 1
     against = f" and {args.expect}" if args.expect else ""
-    print(f"\nOK: all {n} rows of A and B match exactly in every column{against}.")
+    every = "every shared column" if notes else "every column"
+    print(f"\nOK: all {n} rows of A and B match exactly in {every}{against}.")
     return 0
 
 

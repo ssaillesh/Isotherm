@@ -181,8 +181,51 @@ lose one tick. Below saturation `achieved_utilisation` ≈ `offered_load`. It fa
 once jobs queue or large jobs fragment nodes.
 
 Output: `docs/results/sweep.csv`, one row per (policy, load, seed), appended as each run
-finishes (`RESUME=1 make sweep` continues a partial file). Also `sweep_summary.csv` (mean and
-sample std over seeds) and `sweep.png`.
+finishes (`RESUME=1 make sweep` continues a partial file; it refuses a file written with
+different columns). Also `sweep_summary.csv` (mean and sample std over seeds) and `sweep.png`.
+
+### Limit-violation metrics
+
+How far and how long limits are broken, aggregated in `experiments/` from the temperatures
+the sim already returns after each `Step`. The limits are the sim's own (`inlet_limit_c` and
+`throttle_c` in each `NodeState`, which it reads from `configs/`), so `experiments/` neither
+hardcodes nor recomputes them.
+
+| Column | Definition |
+|---|---|
+| `inlet_exceedance_cs` | Σ over servers and ticks of max(0, `inlet_c` − `inlet_limit_c`) × tick, in °C·s |
+| `time_over_inlet_s` | Seconds in which any server's inlet is strictly above its `inlet_limit_c` |
+| `throttled_gpu_s` | GPU-seconds in which a GPU's power was capped (the sim's `throttled` flag) |
+| `gpu_exceedance_cs` | Σ over GPUs and ticks of max(0, `temp_c` − `throttle_c`) × tick, in °C·s |
+
+**End-of-tick rule.** A tick covers (t − tick, t], and the sim reports temperatures only at
+its end, so each tick's end-of-tick value counts for the whole tick (value × `tick_s`). This
+is the same rule `throttled_gpu_s` already used. One server 1°C over its limit at the end of
+one 10 s tick is exactly 10 °C·s. A breach that starts and ends inside one tick is not seen,
+and a breach that starts mid-tick counts from the tick's start, so at 10 s ticks the totals
+are only as fine as 10 s.
+
+**Expect `gpu_exceedance_cs` near zero.** The sim caps GPU power so the junction's steady
+state never passes `throttle_c` (`physics/thermal.py`, `throttle`), using the inlet from the
+previous substep. A GPU only goes above `throttle_c` by the little its inlet rises within
+one substep, or if the inlet itself is above `throttle_c`. A GPU near its limit shows up
+as `throttled_gpu_s` (lost power) rather than as degrees over. The column is kept so that
+claim is measured rather than assumed.
+
+### Paired comparison (experiments/compare.py)
+
+`make compare RESULTS=<dir>` reads `<dir>/sweep.csv` and writes `<dir>/compare.csv`:
+for each target load, other policy and metric, the per-seed difference
+`COMPARE_POLICY` (default isotherm) minus other, as mean and sample std over the seeds,
+plus two counts. `lower` is the number of seeds where the chosen policy was strictly lower.
+`better` uses a direction per metric: lower is better for temperatures, exceedance,
+throttling and wait, higher for `min_headroom_c`. It is blank for columns with no agreed
+direction (utilisation, `window_placed`, `sim_end_s`). A mean gap no larger than its std is
+labelled "no difference" (that includes every difference being 0). Pairing by seed takes
+out the trace-to-trace variation that both policies share. Columns that describe the trace (offered load, the window, job
+counts) are the same for every policy and are skipped. The CSV is read by column name, so
+a sweep written before a metric existed compares on the metrics it has. Each scenario has
+its own results directory, so supply temperatures are compared by running it per directory.
 
 ## Open questions
 

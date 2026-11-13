@@ -32,6 +32,9 @@ class RunMetrics:
     peak_temp_c: float
     mean_busy_temp_c: float
     throttled_gpu_s: float
+    inlet_exceedance_cs: float
+    time_over_inlet_s: float
+    gpu_exceedance_cs: float
 
 
 @dataclass(frozen=True)
@@ -39,7 +42,8 @@ class Tick:
     """One tick, the interval (t_s - tick_s, t_s].
 
     allocated_gpus is what was bound while the tick ran (after that tick's placements).
-    Everything else is what the sim reported at the end of the tick.
+    Everything else is what the sim reported at the end of the tick. Totals over time
+    count each tick's end-of-tick value for the whole tick (value x tick_s).
     """
 
     t_s: float
@@ -51,6 +55,12 @@ class Tick:
     # Smallest margin in the row: min(inlet_limit_c - inlet_c, throttle_c - temp_c).
     min_headroom_c: float
     throttled_gpus: int
+    # How far limits are broken, in °C summed over everything above its limit:
+    # sum over servers of max(0, inlet_c - inlet_limit_c), and over GPUs of
+    # max(0, temp_c - throttle_c). Limits are the sim's, which it reads from configs/.
+    inlet_excess_c: float
+    inlets_over: int  # servers whose inlet is strictly above inlet_limit_c
+    gpu_excess_c: float
 
 
 @dataclass
@@ -74,6 +84,8 @@ def _tick(t: float, allocated: int, state: pb.ClusterState) -> Tick:
     busy = [g.temp_c for g in gpus if g.workload_id]
     headroom = [n.inlet_limit_c - n.inlet_c for n in state.nodes]
     headroom += [n.throttle_c - g.temp_c for n in state.nodes for g in n.gpus]
+    inlet_excess = [max(0.0, n.inlet_c - n.inlet_limit_c) for n in state.nodes]
+    gpu_excess = [max(0.0, g.temp_c - n.throttle_c) for n in state.nodes for g in n.gpus]
     return Tick(
         t_s=t,
         allocated_gpus=allocated,
@@ -83,6 +95,9 @@ def _tick(t: float, allocated: int, state: pb.ClusterState) -> Tick:
         peak_inlet_c=max((n.inlet_c for n in state.nodes), default=0.0),
         min_headroom_c=min(headroom, default=0.0),
         throttled_gpus=sum(g.throttled for g in gpus),
+        inlet_excess_c=sum(inlet_excess),
+        inlets_over=sum(e > 0.0 for e in inlet_excess),
+        gpu_excess_c=sum(gpu_excess),
     )
 
 
@@ -157,6 +172,7 @@ def run_policy(
     submit = {j.job_id: j.submit_s for j in jobs}
     waits = [t - submit[jid] for jid, t in traj.placed_at.items()]
     busy_n = sum(k.busy_gpus for k in traj.ticks)
+    exceed = limit_metrics(traj.ticks, tick_s)
     return RunMetrics(
         policy=policy.name,
         jobs=len(jobs),
@@ -166,7 +182,17 @@ def run_policy(
         peak_temp_c=max((k.peak_temp_c for k in traj.ticks), default=0.0),
         mean_busy_temp_c=sum(k.busy_temp_sum_c for k in traj.ticks) / busy_n if busy_n else 0.0,
         throttled_gpu_s=sum(k.throttled_gpus for k in traj.ticks) * tick_s,
+        **exceed,
     )
+
+
+def limit_metrics(ticks: list[Tick], tick_s: float) -> dict[str, float]:
+    """How far and how long limits were broken over these ticks, in °C·s and s."""
+    return {
+        "inlet_exceedance_cs": sum(k.inlet_excess_c for k in ticks) * tick_s,
+        "time_over_inlet_s": sum(k.inlets_over > 0 for k in ticks) * tick_s,
+        "gpu_exceedance_cs": sum(k.gpu_excess_c for k in ticks) * tick_s,
+    }
 
 
 def write_metrics(rows: list[RunMetrics], path: Path) -> None:

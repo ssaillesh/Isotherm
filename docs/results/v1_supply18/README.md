@@ -12,6 +12,7 @@ four target loads, five seeds each, 120 runs in total.
 | `sweep.csv` | One row per (policy, target load, seed): 120 rows |
 | `sweep_summary.csv` | Mean and sample standard deviation over the 5 seeds, per (policy, target load): 24 rows |
 | `sweep.png` | The summary plotted against target load, one line per policy |
+| `compare.csv` | Paired per-seed differences, isotherm minus each other policy, per load and metric: 200 rows (4 loads x 5 policies x 10 metrics) |
 | `configs/` | Copy of `configs/rack.yaml` and `configs/gpu_specs.yaml` as used for this sweep |
 
 ## What was run
@@ -48,6 +49,18 @@ make sweep                # 120 runs -> docs/results/sweep.csv, sweep_summary.cs
 `make sweep` to `sweep.py --sim localhost:50051 --index ../data/sweep/index.csv --out
 ../docs/results/sweep.csv` followed by `plots.py ../docs/results/sweep_summary.csv --sweep`.
 The files were then moved from `docs/results/` into this folder.
+
+`compare.csv` was made afterwards (2026-11-13, PLAN.md session 3) from this folder's
+`sweep.csv` alone, with no new runs:
+
+```bash
+make compare RESULTS=docs/results/v1_supply18
+```
+
+That is `compare.py ../docs/results/v1_supply18/sweep.csv --policy isotherm --out
+../docs/results/v1_supply18/compare.csv`. It also prints the tables below. This sweep was
+run before the limit-violation columns (`inlet_exceedance_cs`, `time_over_inlet_s`,
+`gpu_exceedance_cs`) existed, so `sweep.csv` and `compare.csv` do not have them.
 
 ## Rerunning it
 
@@ -148,5 +161,6 @@ What the tables say:
   slightly lower (0.32°C at 30%) and the gap is gone by 90%. Wait is no different.
 - Against ortools, peak GPU is no different at any load, and isotherm's mean wait at 90% is
   about 76 s shorter. At 70% and 90% ortools has the lower peak inlet (by 0.18°C and 0.11°C).
-- These tables were computed directly from `sweep.csv`. A permanent script for this
-  comparison (`experiments/compare.py`) is planned for stage 2.
+- These tables were computed directly from `sweep.csv`, and `compare.csv` (from
+  `make compare` above) reproduces every cell: all 80 agree in sign, mean, standard
+  deviation, seed count and "no difference" label at the precision printed here.
