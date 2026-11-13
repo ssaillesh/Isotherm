@@ -18,12 +18,6 @@ isotherm/
   docs/           design.md, assumptions.md, results/
 ```
 
-## The four rules
-
-1. **One contract.** Components talk only through `proto/isotherm.proto`. Stubs are generated (`make proto`), gitignored, and never hand-edited.
-2. **One config.** The row layout and GPU specs live only in `configs/`. Every value there has a source logged in [docs/assumptions.md](docs/assumptions.md).
-3. **One owner for the physics.** Only `sim/` computes temperatures. The scheduler, experiments, ml and replay all ask the sim over gRPC.
-4. **Each folder stands alone.** Every component has its own env (uv project or Go module), tests, Dockerfile, and CI job. There are no imports across components.
 
 ## Prerequisites
 
