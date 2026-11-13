@@ -299,6 +299,8 @@ def main() -> None:
             p.error(f"traces were sized for {sorted(mismatch)} GPUs but the sim has {sim_gpus}")
         for entry in index:
             jobs = read_trace(entry.trace)
+            if len(jobs) < MIN_JOBS:  # the file itself, not just what the index claims
+                p.error(f"{entry.trace} has {len(jobs)} jobs; a sweep needs {MIN_JOBS}")
             for name in args.policies:
                 if (name, entry.target_load, entry.seed) in done:
                     continue
