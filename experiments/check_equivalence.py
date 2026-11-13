@@ -69,7 +69,7 @@ def run_cases(sim_addr: str, traces_dir: Path, rows_path: Path, times_path: Path
             for policy in POLICIES:
                 start = time.perf_counter()
                 row = run_steady_state(sim, jobs, make_policy(policy, seed=seed), load, seed)
-                wall = time.perf_counter() - start
+                wall = round(time.perf_counter() - start, 2)  # as stored, so prints agree
                 append_row(row, rows_path)
                 times.writerow([policy, load, seed, f"{wall:.2f}"])
                 f.flush()

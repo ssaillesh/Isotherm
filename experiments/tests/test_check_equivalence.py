@@ -1,5 +1,4 @@
 import pytest
-
 from check_equivalence import compare_rows, read_rows, speed_rows
 
 

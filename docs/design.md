@@ -67,6 +67,58 @@ total in GPU order (not `sum`), and inlets use one matrix-vector product per sce
 one matrix-matrix product). `sim/tests/test_physics.py` checks `step` against the substep
 written out longhand, and a branch against separate copies, for exact equality.
 
+## Measured speedup
+
+The speed changes in the server (no Prometheus refresh with metrics off), in
+`experiments/simulate.py` (no `GetState` after `Step`) and in `sim/physics` (the three items
+above, plus batched rollouts through scenarios) were all committed together in `43fda44`, so
+they are measured together, not one by one. Before is `5d260c5`, the parent of `43fda44`.
+After is `cda159a`, whose sim and experiments code is the same as `43fda44`'s.
+
+`experiments/check_equivalence.py` exports each commit with `git archive`, starts that
+commit's simulator with metrics off, and drives it with that commit's own experiments code.
+It runs all six policies on the load 0.3 and load 0.9 seed 0 sweep traces through
+`sweep.run_steady_state` (12 runs per commit), then compares every column of every row:
+
+```bash
+make sweep-traces   # if data/sweep/ is missing
+cd experiments && uv run python check_equivalence.py refs 5d260c5 cda159a \
+  --expect ../docs/results/v1_supply18/sweep.csv
+```
+
+**Results are unchanged.** All 12 rows are identical in every column between the two commits,
+and both match the same 12 rows of the v1 sweep (`docs/results/v1_supply18/sweep.csv`).
+
+**Run time.** Wall-clock seconds per run, from that command on 2026-11-13. Machine: Apple M1,
+8 GB, macOS 15.3.1, Python 3.11.14. The 24 runs ran one after another and each was timed once.
+The rows are simulated results. The times are real measurements of the simulator code.
+
+| Policy | 30%, before | 30%, after | Speedup | 90%, before | 90%, after | Speedup |
+|---|---|---|---|---|---|---|
+| random | 49.3 | 18.4 | 2.7x | 19.6 | 10.6 | 1.9x |
+| binpack | 46.8 | 17.4 | 2.7x | 17.8 | 10.6 | 1.7x |
+| spread | 47.7 | 18.0 | 2.6x | 19.6 | 9.6 | 2.0x |
+| coolest-inlet | 45.2 | 17.6 | 2.6x | 17.9 | 8.8 | 2.0x |
+| isotherm | 234.1 | 33.4 | 7.0x | 79.7 | 19.2 | 4.1x |
+| ortools | 270.8 | 69.7 | 3.9x | 122.6 | 38.1 | 3.2x |
+| **all six** | 693.7 | 174.5 | 4.0x | 277.1 | 97.0 | 2.9x |
+
+All 12 runs together: 970.8 s before, 271.5 s after (3.6x).
+
+Single timings move with whatever else the machine is doing. An earlier run the same day,
+using a one-off script that made the same calls, gave identical rows and totals of 945.5 s
+before and 229.4 s after (4.1x). The largest gap between the two runs was ortools at 30% after
+the fixes: 38.8 s then and 69.7 s here. The cause was not investigated. Read the speedups as
+about 2 to 3x for the cheap policies and 3 to 7x for isotherm and ortools, not as exact
+figures.
+
+**Full sweep estimate (interpolated, not measured).** Loads 0.5 and 0.7 and seeds 1 to 4 were
+not timed. Assuming each seed takes as long as seed 0, and that the run time at 0.5 and 0.7
+lies on a straight line between 0.3 and 0.9, the 120-run sweep would take
+5 × 2 × (174.5 + 97.0) s ≈ 45 minutes after the fixes, against 5 × 2 × (693.7 + 277.1) s
+≈ 2.7 hours before. With the earlier run's totals, the after figure is about 38 minutes.
+That is under an hour, so parallel simulator instances are not needed.
+
 ## Scoring
 
 `ScoreCandidates` returns, per candidate:
