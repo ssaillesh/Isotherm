@@ -62,6 +62,24 @@ Predictors:
 - **rollout** (default, exact): copies the row, binds the pod, and simulates over `horizon_s` (default 600 s).
 - **learned**: a gradient-boosted regressor trained by `ml/` on rollout labels. It predicts both headrooms from the feature vector.
 
+## Workload load (replay/loader.py)
+
+The synthetic trace's knob is **offered load**: the average fraction of cluster GPUs the
+jobs ask for while they are arriving, `ρ = λ · E[gpu_count · duration] / capacity_gpus`.
+Given a target ρ, `synthetic()` sets the Poisson arrival rate λ from the closed-form
+expected GPU-seconds per job. Durations are `max(min, Exp(mean))`, so
+`E[duration] = min + mean · exp(-min / mean)`. Job sizes do not change with ρ, only arrival
+spacing does. `offered_load()` measures ρ back from a trace.
+
+Offered load is not the same as the whole-run average busy fraction. The default trace
+(500 jobs, 30 s mean gap) offers about 51% of 320 GPUs. When arrivals stop, the long jobs
+still running need about 9,000 s more to finish, and that tail pulls the whole-run average
+down to about 32%. Above roughly 100%, or when large jobs fragment nodes, jobs queue, and
+achieved utilisation falls below ρ.
+
+`capacity_gpus` is a CLI argument, not read from `configs/`, so `replay` stays standalone
+and adds no YAML dependency. Today it is 10 racks × 4 nodes × 8 GPUs = 320.
+
 ## Open questions
 
 - With the current `configs/`, neither limit binds even at full load (see `assumptions.md`). We need to decide which parameter defines the stressed regime.
