@@ -18,6 +18,33 @@ isotherm/
   docs/           design.md, assumptions.md, results/
 ```
 
+## Results v1 (simulated)
+
+Every number here is simulated: 6 policies x 4 target loads x 5 seeds = 120 runs of
+2,000-job synthetic traces on a 320-GPU row with 18°C supply air. The commands, a snapshot
+of the configs and the full per-load tables are in
+[docs/results/v1_supply18/](docs/results/v1_supply18/README.md).
+
+![Simulated load sweep: steady-state metrics against target load, one line per policy](docs/results/v1_supply18/sweep.png)
+
+Paired differences, isotherm minus the other policy on the same trace (same load and seed).
+Each cell is the mean ± standard deviation over 5 seeds, then the number of seeds where
+isotherm was lower. A gap smaller than its standard deviation is reported as no difference.
+
+| Isotherm vs | Peak GPU at 30% load (°C) | Peak GPU at 90% load (°C) | Mean busy GPU at 30% (°C) | Mean busy GPU at 90% (°C) | Mean wait at 90% (s) |
+|---|---|---|---|---|---|
+| binpack | -1.29 ± 0.20 (5/5) | -0.34 ± 0.08 (5/5) | -2.97 ± 0.05 (5/5) | -0.16 ± 0.15 (5/5) | +6.4 ± 5.3 (0/5) |
+| spread | -0.47 ± 0.15 (5/5) | no difference (-0.04 ± 0.20, 2/5) | -0.60 ± 0.07 (5/5) | -0.25 ± 0.14 (5/5) | -280.4 ± 165.2 (5/5) |
+| random | -0.69 ± 0.29 (5/5) | no difference (-0.13 ± 0.25, 4/5) | -0.70 ± 0.10 (5/5) | no difference (-0.10 ± 0.12, 4/5) | -100.8 ± 48.5 (5/5) |
+| coolest-inlet | no difference (+0.02 ± 0.17, 3/5) | no difference (-0.18 ± 0.19, 4/5) | -0.32 ± 0.03 (5/5) | no difference (-0.02 ± 0.03, 3/5) | no difference (+1.4 ± 1.7, 1/5) |
+| ortools | no difference (+0.01 ± 0.14, 4/5) | no difference (+0.08 ± 0.11, 1/5) | -0.21 ± 0.07 (5/5) | no difference (+0.06 ± 0.17, 2/5) | -76.2 ± 58.8 (5/5) |
+
+Isotherm keeps the hottest GPU 1.29°C cooler than binpack at 30% load and 0.34°C cooler at
+90% load (5 of 5 seeds at every load), and the gap shrinks as the row fills because fewer
+cool places are left to choose from. Against the cheap coolest-inlet rule the peak GPU
+temperature is a tie at every load, and no run came near a limit (zero throttling, peak
+inlet 20.4°C against a 27°C limit, peak GPU 72.8°C against throttle temperatures of 85°C
+and 87°C), so this sweep cannot show whether predicting ahead is worth its cost.
 
 ## Prerequisites
 
