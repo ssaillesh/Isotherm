@@ -7,7 +7,7 @@ value in `configs/`, update its row here in the same change.
 Status key: **sourced** = taken from a primary spec or standard · **derived** = computed from
 sourced values · **assumed** = modelling choice with no direct source yet (calibrate later).
 
-Last reviewed: 2026-11-13.
+Last reviewed: 2026-11-14.
 
 ## Layout: `configs/rack.yaml` → `layout`
 
@@ -24,6 +24,18 @@ Last reviewed: 2026-11-13.
 |---|---|---|---|
 | `supply_temp_c` | 18.0 °C | sourced (as a bound) | The lower edge of the ASHRAE TC 9.9 *recommended* inlet envelope (18–27 °C) [A1]. Real facilities often supply warmer air to save energy, so 18 °C is an optimistic (cool) choice. |
 | `inlet_limit_c` | 27.0 °C | sourced | The upper edge of the same ASHRAE recommended envelope [A1]. It is a recommendation, not a hard limit: the *allowable* classes A1–A4 go higher (A1 to 32 °C). |
+
+### Stress scenarios: variant supply temperatures (not in `configs/`)
+
+The stage 2 stress sweep (PLAN.md sessions 4 and 5) runs the sim on copies of `configs/` under
+`data/configs/supply<T>/` that differ only in `supply_temp_c` (made with
+`make variant-config SUPPLY=<T>`). `configs/` itself stays at 18.0 °C. These temperatures are
+stress settings chosen from the v1 results (simulated), not claims about any real facility.
+
+| Variant | Value | Status | Source and notes |
+|---|---|---|---|
+| `supply24.5` | 24.5 °C | derived | Inlet scenario. 18 + smallest v1 `min_headroom_c` (6.567 °C, spread at load 0.9 seed 0, in `docs/results/v1_supply18/sweep.csv`) = 24.567, rounded **down** to 0.5 °C. The hottest v1 inlet (20.43 °C) would sit at 26.93 °C, just under the 27 °C limit. Inside the ASHRAE recommended envelope [A1]. |
+| `supply32` | 32.0 °C | derived | GPU scenario. 18 + smallest v1 gap between a GPU and its own throttle temperature (14.213 °C), rounded **down** to 0.5 °C. The gap was measured by rerunning the hottest v1 run (binpack, load 0.9, seed 4) at 18 °C: the hottest GPU was an H100 at 72.787 °C against its 87 °C throttle (the A100s in that run peaked at 67.59 °C, gap 17.41 °C). See `design.md`, "Stress scenarios". At the top of the A1 *allowable* range [A1], and above the 27 °C inlet limit: every inlet is over the limit in this scenario. |
 
 ## Air: `configs/rack.yaml` → `air`
 

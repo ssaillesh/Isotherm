@@ -227,9 +227,86 @@ counts) are the same for every policy and are skipped. The CSV is read by column
 a sweep written before a metric existed compares on the metrics it has. Each scenario has
 its own results directory, so supply temperatures are compared by running it per directory.
 
+## Stress scenarios (variant configs)
+
+Stage 2 asks whether isotherm beats coolest-inlet when cooling is tight. The stressed regime
+is made with warmer supply air, without editing `configs/` (CLAUDE.md rule 2).
+
+**Config directories.** The sim (`server.py --config-dir`), the trace loader and the kwok
+node generator all read a config directory, and the Makefile passes `CONFIG_DIR` (default
+`configs`) to `make sim`, `trace`, `sweep-traces`, `sweep` and `nodes`.
+`make variant-config SUPPLY=<T>` (`experiments/variant_config.py`) writes
+`data/configs/supply<T>/`: `gpu_specs.yaml` byte for byte, and `rack.yaml` with only the
+`supply_temp_c` value changed (a one-line text edit, so comments survive and the copy diffs
+against `configs/` in that one line). `sweep.py --config-dir` copies the directory into
+`<results>/configs/` and refuses to resume into a results directory recorded with a
+different config. The sweep never reads the physics from it (the limits come from the sim);
+it only records it. The proto does not report the sim's supply temperature, so the sweep
+cannot check that the running sim was started with the same directory. The sim logs the
+directory and its supply temperature at startup; the Makefile passing one `CONFIG_DIR` to
+both is the guard.
+
+**Choosing the temperatures from v1** (all simulated; details in `assumptions.md`). The
+model shifts every temperature one for one with the supply air (see the linearity check),
+so the v1 margins say where the limits are reached:
+
+| Scenario | v1 margin used | Supply | Variant |
+|---|---|---|---|
+| Inlet | smallest `min_headroom_c`, 6.567 °C (spread, load 0.9, seed 0) | 18 + 6.567 = 24.567, rounded down: **24.5 °C** | `data/configs/supply24.5/` |
+| GPU | smallest gap to own throttle temperature, 14.213 °C (H100, binpack, load 0.9, seed 4) | 18 + 14.213 = 32.213, rounded down: **32.0 °C** | `data/configs/supply32/` |
+
+`sweep.csv` records the row-wide peak GPU temperature (72.787 °C) but not which model it
+was, and the two models throttle at different temperatures (H100 87 °C, A100 85 °C). The GPU
+gap was therefore measured by rerunning that v1 run at 18 °C with a throwaway script (not
+in the repo) that wraps the sim stub, passes it to `sweep.run_steady_state`, and records
+`throttle_c - temp_c` per GPU model over the steady-state window. The rerun reproduced
+v1's `peak_temp_c` exactly (72.7869573172272). Smallest gaps in that run: H100 14.213 °C
+(peak 72.787 °C), A100 17.412 °C (peak 67.588 °C). That one run settles the H100 gap for
+all of v1 (no GPU in any v1 run was hotter than 72.787 °C). For the A100s it is a derived
+bound, not a measurement over all runs: an A100 junction settles at most 0.12 °C/W x 400 W
+= 48 °C above its inlet, and no v1 inlet in a measured window passed 20.43 °C, so no A100
+should have come within 16.5 °C of its 85 °C throttle. PLAN.md expected about 30 °C, which assumed the A100 throttle
+temperature applied to the hottest GPU.
+
+Both temperatures were rounded down, as PLAN.md specifies, so in the v1 traces the hottest
+inlet stays just under 27 °C at 24.5 °C, and the hottest GPU just under 87 °C at 32 °C.
+
+**Linearity check** (`experiments/linearity_check.py`, 2026-11-14). Binpack on the load 0.5,
+seed 0 sweep trace, against a sim on `configs/` and one on `data/configs/supply24.5/`:
+
+```bash
+cd experiments && uv run python linearity_check.py \
+  --sim-a localhost:50071 --config-a ../configs \
+  --sim-b localhost:50072 --config-b ../data/configs/supply24.5 \
+  --trace ../data/sweep/load0.50-seed0.csv --load 0.5 --seed 0 --policy binpack
+```
+
+Peak inlet 20.365 → 26.865 °C and peak GPU 72.433 → 78.933 °C: both +6.500000 °C, against
+a ±0.05 °C tolerance. Mean busy GPU temperature also moved by +6.500000 °C and
+`min_headroom_c` by -6.500000 °C; every queue and placement column was identical. The 18 °C
+row equals v1's row for that run. Rows: `data/stress_check/linearity.csv`. A sim test,
+`test_supply_shift_moves_every_temperature_by_the_shift`, guards the same property.
+
+**Smoke test** (not a result: one 200-job trace, one seed, not saved to `docs/results/`).
+Trace: `loader.py synthetic --jobs 200 --seed 0 --load 0.9` (offered load 0.820). Binpack,
+coolest-inlet and isotherm through `simulate.py`, against sims at 18, 24.5 and 32 °C, rows in
+`data/smoke/supply<T>/smoke.csv`. Every run placed all 200 jobs; each scenario took about
+8 s for the three policies. Isotherm did not stall at 32 °C, where every candidate is
+infeasible: `IsothermPolicy` then ranks all candidates by headroom (`policies.py`).
+
+One observation from the smoke runs, to keep in mind for Session 5: for all three policies,
+the 24.5 °C and 32 °C runs were exact shifts of the 18 °C run (peak and mean busy GPU
+temperature +6.5 and +14.0 °C to 9 decimal places, identical waits). Binpack and
+coolest-inlet rank nodes in a way a uniform shift cannot change. Isotherm ranks on
+`min(inlet headroom, GPU headroom)`, which shifts uniformly too, and its feasibility filter
+changes nothing when every candidate is feasible (24.5 °C) or none is (32 °C, where it falls
+back to all of them). Isotherm can only place differently when some candidates are feasible
+and others are not. If the full traces never put the row in that state, the stress sweep
+will reproduce v1's differences shifted by the supply change.
+
 ## Open questions
 
-- With the current `configs/`, neither limit binds even at full load (see `assumptions.md`). We need to decide which parameter defines the stressed regime.
+- Stressed regime: warmer supply air, chosen from v1 margins (see "Stress scenarios").
 - Should infeasible nodes be filtered out (a Filter plugin) and not just scored last?
 - Replay-time sim clock vs. scheduler wall clock: binds that arrive between ticks are applied at the next `Step`.
 - Calibrating the recirculation parameters needs CFD or inlet sensor data.
