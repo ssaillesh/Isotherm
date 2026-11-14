@@ -257,6 +257,34 @@ def read_rows(path: Path) -> list[SweepRow]:
         return [SweepRow(**{k: cast[types[k]](v) for k, v in r.items()}) for r in reader]
 
 
+CONFIG_FILES = ("rack.yaml", "gpu_specs.yaml")
+
+
+def record_config(config_dir: Path, results_dir: Path) -> Path:
+    """Copy the config files the sim was started with into <results_dir>/configs/.
+
+    The sweep only reads them to record them: every limit it uses comes from the sim. A
+    copy that is already there (a --resume) must match byte for byte, so one results
+    directory never mixes two configs. Returns the copy's directory.
+    """
+    dest = results_dir / "configs"
+    for name in CONFIG_FILES:  # check everything before copying anything
+        if not (config_dir / name).is_file():
+            raise ValueError(f"{config_dir} has no {name}")
+    for name in CONFIG_FILES:
+        src, target = config_dir / name, dest / name
+        if target.exists():
+            if target.read_bytes() != src.read_bytes():
+                raise ValueError(
+                    f"{target} differs from {src}; this results directory was run with"
+                    " another config, write to a new RESULTS directory instead"
+                )
+            continue
+        dest.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(src.read_bytes())
+    return dest
+
+
 def append_row(row: SweepRow, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     new = not path.exists() or path.stat().st_size == 0
@@ -291,6 +319,12 @@ def main() -> None:
     p.add_argument("--tick-s", type=float, default=10.0)
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--resume", action="store_true", help="skip rows already in --out")
+    p.add_argument(
+        "--config-dir",
+        type=Path,
+        default=Path("../configs"),
+        help="config directory the running sim was started with; copied next to --out",
+    )
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
@@ -309,6 +343,11 @@ def main() -> None:
         )
     except ValueError as e:
         p.error(str(e))
+    try:
+        copied = record_config(args.config_dir, args.out.parent)
+    except ValueError as e:
+        p.error(str(e))
+    log.info("config %s recorded in %s", args.config_dir.resolve(), copied)
 
     with grpc.insecure_channel(args.sim) as channel:
         sim = pb_grpc.ThermalSimStub(channel)

@@ -14,6 +14,7 @@ from sweep import (
     percentile,
     read_index,
     read_rows,
+    record_config,
     run_steady_state,
     steady_state_metrics,
     steady_state_window,
@@ -231,3 +232,33 @@ def test_resume_refuses_a_csv_with_other_columns(tmp_path):
     empty = tmp_path / "empty.csv"
     empty.write_text("")
     assert read_rows(empty) == []
+
+
+def _config(dir_, supply="18.0"):
+    dir_.mkdir(parents=True, exist_ok=True)
+    (dir_ / "rack.yaml").write_text(f"cooling:\n  supply_temp_c: {supply}\n")
+    (dir_ / "gpu_specs.yaml").write_text("node:\n  gpus_per_node: 8\n")
+    return dir_
+
+
+def test_sweep_records_the_config_it_ran_with(tmp_path):
+    cfg = _config(tmp_path / "cfg")
+    dest = record_config(cfg, tmp_path / "results")
+    assert dest == tmp_path / "results" / "configs"
+    for name in ("rack.yaml", "gpu_specs.yaml"):
+        assert (dest / name).read_bytes() == (cfg / name).read_bytes()
+    assert record_config(cfg, tmp_path / "results") == dest  # a resume with the same config
+
+
+def test_resume_refuses_a_different_config(tmp_path):
+    record_config(_config(tmp_path / "cool"), tmp_path / "results")
+    with pytest.raises(ValueError, match="another config"):
+        record_config(_config(tmp_path / "warm", supply="24.5"), tmp_path / "results")
+
+
+def test_record_config_needs_both_files(tmp_path):
+    (tmp_path / "cfg").mkdir()
+    (tmp_path / "cfg" / "rack.yaml").write_text("x: 1\n")
+    with pytest.raises(ValueError, match="gpu_specs.yaml"):
+        record_config(tmp_path / "cfg", tmp_path / "results")
+    assert not (tmp_path / "results").exists()  # nothing half-copied

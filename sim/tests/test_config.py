@@ -43,3 +43,18 @@ def test_name_format_must_be_unique(tmp_path):
     path = _write_configs(tmp_path, node_name_format="rack{rack}")
     with pytest.raises(ValueError, match="duplicate"):
         load_cluster(rack_path=path)
+
+
+def test_config_dir_picks_both_files(tmp_path):
+    # A variant directory (as under data/configs/) is read instead of configs/.
+    rack = yaml.safe_load((DEFAULT_CONFIG_DIR / "rack.yaml").read_text())
+    rack["cooling"]["supply_temp_c"] = 24.5
+    (tmp_path / "rack.yaml").write_text(yaml.safe_dump(rack))
+    (tmp_path / "gpu_specs.yaml").write_text((DEFAULT_CONFIG_DIR / "gpu_specs.yaml").read_text())
+    assert load_cluster(config_dir_path=tmp_path).supply_temp_c == 24.5
+    assert load_cluster().supply_temp_c != 24.5
+
+
+def test_config_dir_without_files_fails(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_cluster(config_dir_path=tmp_path)

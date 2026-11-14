@@ -15,6 +15,10 @@ METRICS_PORT  ?= 9100
 CLUSTER       ?= isotherm
 TRACE         ?= data/synthetic.csv
 RESULTS       ?= docs/results
+# Config directory every component reads (rack.yaml, gpu_specs.yaml). Sweeps that change a
+# physical number point this at a variant under data/configs/ and never edit configs/.
+CONFIG_DIR    ?= configs
+CONFIG_ABS    := $(abspath $(CONFIG_DIR))
 
 # Load sweep (`make sweep-traces sweep`): the rules need >= 2000 jobs and >= 5 seeds.
 LOADS         ?= 0.3 0.5 0.7 0.9
@@ -22,6 +26,8 @@ SEEDS         ?= 5
 SWEEP_JOBS    ?= 2000
 SWEEP_DIR     ?= data/sweep
 COMPARE_POLICY ?= isotherm
+POLICIES      ?=
+SUPPLY        ?=
 
 PROTOC_GEN_GO_VERSION      := v1.35.2
 PROTOC_GEN_GO_GRPC_VERSION := v1.5.1
@@ -85,12 +91,13 @@ test-deploy: ## Test the kwok node generator
 
 # ---------------------------------------------------------------- run locally
 
-.PHONY: sim trace baselines sweep-traces sweep compare dataset train
+.PHONY: sim trace baselines sweep-traces sweep compare variant-config dataset train
 sim: proto-sim ## Run the thermal simulator (gRPC :50051, metrics :9100; METRICS_PORT=0 for sweeps)
-	cd sim && uv run python server.py --metrics-port $(METRICS_PORT)
+	cd sim && uv run python server.py --metrics-port $(METRICS_PORT) --config-dir $(CONFIG_ABS)
 
 trace: ## Generate a synthetic trace into $(TRACE)
-	cd replay && uv run python loader.py synthetic --jobs 500 --out ../$(TRACE)
+	cd replay && uv run python loader.py synthetic --jobs 500 --config-dir $(CONFIG_ABS) \
+	  --out ../$(TRACE)
 
 baselines: proto-experiments ## Run every policy against a running sim (needs `make sim`)
 	cd experiments && uv run python simulate.py --sim $(SIM_ADDR) --trace ../$(TRACE) \
@@ -99,17 +106,23 @@ baselines: proto-experiments ## Run every policy against a running sim (needs `m
 
 sweep-traces: ## Generate one trace per (load, seed) plus an index into $(SWEEP_DIR)
 	cd replay && uv run python loader.py sweep --loads $(LOADS) --seeds $(SEEDS) \
-	  --jobs $(SWEEP_JOBS) --out ../$(SWEEP_DIR)
+	  --jobs $(SWEEP_JOBS) --config-dir $(CONFIG_ABS) --out ../$(SWEEP_DIR)
 
-sweep: proto-experiments ## Steady-state load sweep (needs `make sim METRICS_PORT=0`; RESUME=1)
+sweep: proto-experiments ## Steady-state load sweep (needs `make sim METRICS_PORT=0` with the same CONFIG_DIR; RESUME=1, POLICIES=...)
 	cd experiments && uv run python sweep.py --sim $(SIM_ADDR) \
-	  --index ../$(SWEEP_DIR)/index.csv --out ../$(RESULTS)/sweep.csv $(if $(RESUME),--resume)
+	  --index ../$(SWEEP_DIR)/index.csv --out ../$(RESULTS)/sweep.csv \
+	  --config-dir $(CONFIG_ABS) $(if $(POLICIES),--policies $(POLICIES)) $(if $(RESUME),--resume)
 	cd experiments && uv run python plots.py ../$(RESULTS)/sweep_summary.csv --sweep \
 	  --out ../$(RESULTS)
 
 compare: proto-experiments ## Paired per-seed comparison of COMPARE_POLICY vs the rest -> $(RESULTS)/compare.csv
 	cd experiments && uv run python compare.py ../$(RESULTS)/sweep.csv \
 	  --policy $(COMPARE_POLICY) --out ../$(RESULTS)/compare.csv
+
+variant-config: ## Copy configs/ to data/configs/supply$(SUPPLY)/ with only the supply temperature changed (SUPPLY=24.5)
+	@test -n "$(SUPPLY)" || { echo "set SUPPLY, e.g. make variant-config SUPPLY=24.5"; exit 1; }
+	cd experiments && uv run python variant_config.py --base ../configs --supply $(SUPPLY) \
+	  --out ../data/configs/supply$(SUPPLY)
 
 dataset: proto-ml ## Build a surrogate dataset from the sim's rollout oracle (needs `make sim`)
 	cd ml && uv run python dataset.py --sim $(SIM_ADDR) --out ../data/surrogate.npz
@@ -129,7 +142,7 @@ cluster-up: ## Create the kwok cluster and its fake GPU nodes
 	$(MAKE) --no-print-directory nodes
 
 nodes: ## (Re)apply kwok nodes generated from configs/
-	uv run deploy/kwok/gen_nodes.py | kubectl --context kwok-$(CLUSTER) apply -f -
+	uv run deploy/kwok/gen_nodes.py --config-dir $(CONFIG_ABS) | kubectl --context kwok-$(CLUSTER) apply -f -
 
 cluster-down: ## Delete the kwok cluster
 	kwokctl delete cluster --name $(CLUSTER)

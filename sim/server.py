@@ -14,7 +14,7 @@ from pathlib import Path
 import grpc
 from prometheus_client import Gauge, start_http_server
 
-from config import load_cluster
+from config import config_dir, load_cluster
 from gen import isotherm_pb2 as pb
 from gen import isotherm_pb2_grpc as pb_grpc
 from physics import Cluster, PlacementError, Workload
@@ -184,12 +184,26 @@ def main() -> None:
     p.add_argument("--metrics-port", type=int, default=9100, help="0 disables metrics")
     p.add_argument("--predictor", default="rollout", choices=["rollout", "learned"])
     p.add_argument("--model-path", type=Path, help="joblib model for the learned predictor")
-    p.add_argument("--rack", type=Path, help="override configs/rack.yaml")
-    p.add_argument("--gpu-specs", type=Path, help="override configs/gpu_specs.yaml")
+    p.add_argument(
+        "--config-dir",
+        type=Path,
+        default=config_dir(),
+        help="directory with rack.yaml and gpu_specs.yaml (default: $ISOTHERM_CONFIG_DIR or"
+        " the repo's configs/)",
+    )
+    p.add_argument("--rack", type=Path, help="override <config-dir>/rack.yaml")
+    p.add_argument("--gpu-specs", type=Path, help="override <config-dir>/gpu_specs.yaml")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-    cluster = Cluster(load_cluster(args.rack, args.gpu_specs))
+    spec = load_cluster(args.rack, args.gpu_specs, args.config_dir)
+    log.info(
+        "config %s: supply %.2f C, inlet limit %.2f C",
+        args.config_dir.resolve(),
+        spec.supply_temp_c,
+        spec.inlet_limit_c,
+    )
+    cluster = Cluster(spec)
     predictors = {"rollout": make_predictor("rollout")}
     if args.model_path:
         predictors["learned"] = make_predictor("learned", args.model_path)

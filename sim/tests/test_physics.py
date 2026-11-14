@@ -206,3 +206,20 @@ def test_branch_rejects_a_node_that_cannot_take_the_trial(cluster):
         cluster.branch(Workload("trial", 1, 1.0), [node])
     assert not cluster.can_bind(Workload("trial", 1, 1.0), node)
     assert cluster.can_bind(Workload("trial", 1, 1.0), cluster.node_names[1])
+
+
+def test_supply_shift_moves_every_temperature_by_the_shift(spec):
+    # The stress scenarios rely on this: with nothing throttling, warmer supply air shifts
+    # every inlet and GPU temperature by exactly the supply change (T_in = T_supply + D @ P,
+    # and power does not depend on temperature below throttle).
+    shift = 6.5
+    cool = Cluster(spec)
+    warm = Cluster(replace(spec, supply_temp_c=spec.supply_temp_c + shift))
+    names = cool.node_names
+    for k, dt in enumerate([10.0, 60.0, 7.0, 600.0]):
+        for c in (cool, warm):
+            c.bind(Workload(f"w{k}", 4 + k % 5, 0.6 + 0.1 * k), names[(k * 7) % len(names)])
+            c.step(dt)
+        assert not warm.throttled.any()
+        np.testing.assert_allclose(warm.inlet_c - cool.inlet_c, shift, rtol=0, atol=1e-9)
+        np.testing.assert_allclose(warm.temp_c - cool.temp_c, shift, rtol=0, atol=1e-9)

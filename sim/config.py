@@ -57,9 +57,19 @@ class ClusterSpec:
     nodes: tuple[NodeSpec, ...]  # rack-major: rack 0 slots 0..S-1, then rack 1, ...
 
 
-def load_cluster(rack_path: Path | None = None, gpu_specs_path: Path | None = None) -> ClusterSpec:
-    rack_path = rack_path or config_dir() / "rack.yaml"
-    gpu_specs_path = gpu_specs_path or config_dir() / "gpu_specs.yaml"
+def load_cluster(
+    rack_path: Path | None = None,
+    gpu_specs_path: Path | None = None,
+    config_dir_path: Path | None = None,
+) -> ClusterSpec:
+    """Load the row from a config directory (default: config_dir()).
+
+    rack_path and gpu_specs_path override one file each; config_dir_path picks the
+    directory both files come from otherwise (a variant under data/configs/, say).
+    """
+    base = config_dir_path or config_dir()
+    rack_path = rack_path or base / "rack.yaml"
+    gpu_specs_path = gpu_specs_path or base / "gpu_specs.yaml"
     rack = yaml.safe_load(rack_path.read_text())
     gpu_cfg = yaml.safe_load(gpu_specs_path.read_text())
 
